@@ -13,6 +13,7 @@ import { ScoreBreakdown } from "@/components/score-breakdown";
 import { IssueList } from "@/components/issue-list";
 import { SkillValidationPanel } from "@/components/skill-validation-panel";
 import { JDMatchPanel } from "@/components/jd-match-panel";
+import { GrammarPanel } from "@/components/grammar-panel";
 
 function DownloadButton({ analysis }: { analysis: AnalysisResponse }) {
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
@@ -164,6 +165,8 @@ export function AnalysisResults({ analysis }: { analysis: AnalysisResponse }) {
       <IssueList issues={analysis.detailed_feedback} />
 
       <SkillValidationPanel data={analysis.skill_validation} />
+
+      <GrammarPanel data={analysis.grammar} />
     </div>
   );
 }

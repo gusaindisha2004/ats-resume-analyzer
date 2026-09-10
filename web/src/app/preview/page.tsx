@@ -56,6 +56,19 @@ const FIXTURE: AnalysisResponse = {
     unvalidated: ["Kubernetes", "Terraform", "Kafka"],
     total: 5, validated_count: 2, validation_pct: 40,
   },
+  grammar: {
+    total_errors: 4,
+    score: 78,
+    critical: [
+      { error_text: "developement", message: "'developement' looks misspelled.", suggestions: ["development"], context: "Responsible for the backend developement" },
+      { error_text: "performace", message: "'performace' looks misspelled.", suggestions: ["performance"], context: "improving performace of the system" },
+    ],
+    moderate: [
+      { error_text: "responsible for", message: "'Responsible for' describes a duty, not an achievement. Start with a past-tense action verb instead.", suggestions: [], context: "Responsible for the backend developement" },
+      { error_text: "I", message: "Avoid first-person pronouns — drop 'I' and lead with a verb.", suggestions: [], context: "I worked on payment features" },
+    ],
+    minor: [],
+  },
   jd_match: {
     match_percentage: 58.4, semantic_similarity: 0.61,
     matched_keywords: ["Python", "FastAPI", "PostgreSQL", "REST API design"],

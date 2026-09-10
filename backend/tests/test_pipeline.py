@@ -156,6 +156,22 @@ class TestWithoutJobDescription:
         assert validation['validated_count'] > 0
         assert validation['validated_count'] + len(validation['unvalidated']) == validation['total']
 
+    def test_grammar_report_reaches_the_response(self, run_pipeline):
+        response = AnalysisResponse(
+            **run_pipeline(), filename='r.pdf', analyzed_at=datetime.now(timezone.utc)
+        )
+        assert 0 <= response.grammar.score <= 100
+        assert response.grammar.total_errors == (
+            len(response.grammar.critical)
+            + len(response.grammar.moderate)
+            + len(response.grammar.minor)
+        )
+
+    def test_clean_resume_text_is_not_penalised_for_writing(self, run_pipeline):
+        """The fixture resume is well written — it must not lose content points
+        to phantom spelling errors on its technology names."""
+        assert run_pipeline()['grammar']['critical'] == []
+
     def test_experience_months_are_summed(self, run_pipeline):
         assert run_pipeline()['experience_months'] == 36
 

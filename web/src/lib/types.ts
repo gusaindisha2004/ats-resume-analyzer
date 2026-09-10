@@ -34,6 +34,21 @@ export interface SkillValidation {
   validation_pct: number;
 }
 
+export interface WritingIssue {
+  error_text: string;
+  message: string;
+  suggestions: string[];
+  context: string;
+}
+
+export interface GrammarReport {
+  total_errors: number;
+  score: number;
+  critical: WritingIssue[];
+  moderate: WritingIssue[];
+  minor: WritingIssue[];
+}
+
 export type Severity = "High" | "Moderate" | "Low";
 
 export interface IssueDetail {
@@ -58,6 +73,7 @@ export interface AnalysisResponse {
   detailed_feedback: IssueDetail[];
 
   skill_validation: SkillValidation;
+  grammar: GrammarReport;
   jd_match: JDMatch | null;
 
   skills: string[];

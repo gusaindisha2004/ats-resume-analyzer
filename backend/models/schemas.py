@@ -64,6 +64,29 @@ class SkillValidation(BaseModel):
     validation_pct: float = 0.0
 
 
+class WritingIssue(BaseModel):
+    """One spelling or style finding."""
+
+    error_text: str = Field(..., description='The offending text as it appears')
+    message: str = Field(..., description='What is wrong, in plain English')
+    suggestions: List[str] = []
+    context: str = Field('', description='Surrounding line, for locating it')
+
+
+class GrammarReport(BaseModel):
+    """Spelling and resume-writing-style findings, split by severity.
+
+    `critical` is misspellings; `moderate` is style that costs a screen
+    (first-person pronouns, duty-style bullet openers); `minor` is polish.
+    """
+
+    total_errors: int = 0
+    score: float = Field(100.0, description='Writing quality, 0-100')
+    critical: List[WritingIssue] = []
+    moderate: List[WritingIssue] = []
+    minor: List[WritingIssue] = []
+
+
 class IssueDetail(BaseModel):
     """One specific, actionable problem found in the resume."""
 
@@ -93,6 +116,7 @@ class AnalysisResponse(BaseModel):
     detailed_feedback: List[IssueDetail] = []
 
     skill_validation: SkillValidation
+    grammar: GrammarReport = Field(default_factory=GrammarReport)
     jd_match: Optional[JDMatch] = None
 
     skills: List[str] = Field([], description='Skills extracted from the resume')

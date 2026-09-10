@@ -21,6 +21,10 @@ Upload a PDF or DOCX resume, optionally paste a job posting, and get back:
   similarity from the embedding model.
 - **Specific issues**, each with where it appears, why it costs you, concrete
   action items, and a rewritten example.
+- **Writing quality** — spelling plus resume-specific style rules (first-person
+  pronouns, duty-style bullet openers, duplicated words). Technology names,
+  acronyms, URLs, your own listed skills and British spellings are all excluded,
+  so the section stays worth reading.
 - **A PDF report** and a saved history, so you can check a rewrite actually
   moved the number.
 
@@ -46,10 +50,10 @@ description's keywords.
 ```
 ├── backend/            FastAPI service
 │   ├── api/            Routes and Supabase JWT verification
-│   ├── services/       Parsing, LLM extraction, scoring, feedback, reports
+│   ├── services/       Parsing, LLM extraction, scoring, writing checks, reports
 │   ├── models/         Pydantic schemas — the API contract
 │   ├── database/       Supabase REST persistence
-│   └── tests/          75 tests, pytest
+│   └── tests/          121 tests, pytest
 └── web/                Next.js App Router frontend
     ├── src/app/        Routes: landing, analyze, history, login, auth callback
     ├── src/components/ Score gauge, breakdown, issue list, panels
@@ -124,8 +128,9 @@ create policy "own rows" on analyses
 pytest backend/tests -q
 ```
 
-75 tests covering keyword matching and alias resolution, each scoring component
-and its bounds, skill validation, location detection, LLM response handling
+121 tests covering keyword matching and alias resolution, each scoring component
+and its bounds, skill validation, location detection, spelling and style checks
+(with heavy emphasis on what must *not* be flagged), LLM response handling
 (malformed JSON, markdown fences, retries, type coercion), and a full pipeline
 run against the real spaCy and sentence-transformer models with only the Groq
 call mocked.
@@ -139,8 +144,11 @@ call mocked.
   Without them the API returns a 503 with instructions rather than failing
   opaquely. On Windows, install the GTK3 runtime; on Debian/Ubuntu:
   `sudo apt install libcairo2 libpango-1.0-0 libpangoft2-1.0-0 libffi-dev`.
-- **Grammar checking is not implemented.** The scorer accepts a grammar result
-  and applies neutral defaults, so the hook exists but the check doesn't.
+- **Writing checks are spelling + resume style, not full grammar.** A
+  general-purpose grammar checker is the wrong tool: resume bullets are
+  deliberate sentence fragments, so a conventional checker floods the output
+  with false positives on correctly-written text. See
+  `backend/services/grammar_checker.py` for the reasoning and the filters.
 - **Legacy `.doc` is unsupported** — convert to `.docx` or PDF first.
 - The `jupyter notebooks/` research (BERT fine-tuning on resume/JD pairs) informed
   the approach but the fine-tuned model isn't wired in; runtime uses stock

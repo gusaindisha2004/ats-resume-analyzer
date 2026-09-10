@@ -65,14 +65,12 @@ def analyze_full_resume(
             nlp=nlp,
         )
 
-    from backend.utils.file_utils import get_default_grammar_results
-
-    # Grammar checking is not implemented yet; the neutral defaults keep the
-    # content score from being penalised for a check we never ran.
-    grammar_results = get_default_grammar_results()
-
-    # Location/privacy detection IS implemented — run it rather than stubbing it.
     from backend.services.ats_scorer import detect_location_info
+    from backend.services.grammar_checker import check_grammar
+
+    # The candidate's own skills are treated as correctly spelled — they're
+    # domain vocabulary, not typos.
+    grammar_results = check_grammar(resume_text, nlp, known_skills=skills)
     location_results = detect_location_info(resume_text, nlp)
 
     scores = calculate_overall_score(
@@ -136,6 +134,13 @@ def analyze_full_resume(
         "issues_summary":    issues_summary,
         "detailed_feedback": detailed_feedback,
         "skill_validation":  skill_validation_details,
+        "grammar": {
+            "total_errors":      grammar_results["total_errors"],
+            "score":             grammar_results["grammar_score"],
+            "critical":          grammar_results["critical_errors"],
+            "moderate":          grammar_results["moderate_errors"],
+            "minor":             grammar_results["minor_errors"],
+        },
         "jd_match":          jd_comparison_result,
         "skills":            list(skills),
         "experience_months": experience_months,

@@ -5,7 +5,6 @@ from sentence_transformers import SentenceTransformer
 from typing import Dict, List, Optional, Tuple
 
 from backend.utils.file_utils import log_warning
-from backend.core.config import SENTENCE_TRANSFORMER_MODEL
 from backend.utils.matching import fuzzy_match_keywords
 
 ZIP_CODE_PATTERN = r'\b\d{5}(?:-\d{4})?\b'
@@ -380,77 +379,6 @@ def calculate_overall_score(
         'penalties':               penalties,
         'bonuses':                 bonuses,}
 
-#Overall score calculation and interpretation
-def generate_strengths(
-    score_results: Dict,
-    skill_validation_results: Dict,
-    grammar_results: Dict,
-) -> List[str]:
-
-    strengths = []
-
-    if score_results['formatting_score']       >= 16:
-        strengths.append(' Well-structured with clear sections and bullet points')
-    if score_results['keywords_score']          >= 20:
-        strengths.append(' Strong keyword optimization and skills presence')
-    if score_results['content_score']           >= 20:
-        strengths.append(' Excellent use of action verbs and quantifiable achievements')
-    if score_results['skill_validation_score']  >= 12:
-        pct = skill_validation_results.get('validation_percentage', 0) * 100
-        strengths.append(f' {pct:.0f}% of skills are validated by projects')
-    if score_results['ats_compatibility_score'] >= 13:
-        strengths.append(' Excellent ATS compatibility with clean formatting')
-    if grammar_results.get('total_errors', 0)   == 0:
-        strengths.append(' Error-free grammar and spelling')
-
-    if not strengths:
-        strengths.append('Your resume has potential - focus on the recommendations below')
-    return strengths
-
-
-#Critical issues that could cause ATS rejection
-def generate_critical_issues(
-    score_results: Dict,
-    grammar_results: Dict,
-    location_results: Dict,
-) -> List[str]:
-    issues = []
-
-    critical_errors = len(grammar_results.get('critical_errors', []))
-    if critical_errors > 0:
-        issues.append(f' {critical_errors} critical grammar/spelling error(s) detected')
-    if location_results.get('privacy_risk') == 'high':
-        issues.append('High privacy risk: Remove detailed location information')
-    if score_results['formatting_score']       < 10:
-        issues.append(' Poor formatting: Add clear sections and bullet points')
-    if score_results['keywords_score']         < 12:
-        issues.append(' Insufficient keywords and skills')
-    if score_results['skill_validation_score'] < 7:
-        issues.append(' Most skills lack supporting evidence in projects')
-
-    return issues
-
-
-#Actionable improvements to enhance ATS performance
-def generate_improvements(
-    score_results: Dict,
-    skill_validation_results: Dict,
-) -> List[str]:
-    improvements = []
-
-    if 12 <= score_results['formatting_score']       < 16:
-        improvements.append('Add more bullet points and improve section organization')
-    if 14 <= score_results['keywords_score']          < 20:
-        improvements.append('Include more relevant keywords and technical skills')
-    if 14 <= score_results['content_score']           < 20:
-        improvements.append('Add more quantifiable achievements and action verbs')
-    if 7  <= score_results['skill_validation_score']  < 12:
-        unvalidated_count = len(skill_validation_results.get('unvalidated_skills', []))
-        improvements.append(f'Validate {unvalidated_count} skill(s) by adding relevant project details')
-    if 9  <= score_results['ats_compatibility_score'] < 13:
-        improvements.append('Simplify formatting for better ATS compatibility')
-
-    return improvements
 
 #Interpretation of overall score
 def _generate_score_interpretation(overall_score: float) -> str:

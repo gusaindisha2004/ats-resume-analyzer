@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+backend/logs/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+next-env.d.ts
+
+# Secrets
+.env
+.env.local
+*.local
+
+# Reference copy of the original project — not part of the build
+reference/
+
+# Data & models
+*.csv
+*.pkl
+*.safetensors
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

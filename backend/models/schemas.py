@@ -1,0 +1,115 @@
+"""Public API response models.
+
+These are the single source of truth for the frontend's TypeScript types —
+`web/src/lib/api/types.ts` is generated from the OpenAPI schema FastAPI derives
+from this module. Renaming a field here is a breaking change for the client.
+"""
+
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
+
+# Maximum points available per component. The frontend renders each component
+# as `score / max`, so this has to stay in sync with backend/services/ats_scorer.py.
+COMPONENT_MAX: Dict[str, float] = {
+    'formatting': 20.0,
+    'keywords': 25.0,
+    'content': 25.0,
+    'skill_validation': 15.0,
+    'ats_compatibility': 15.0,
+}
+
+
+class ComponentScores(BaseModel):
+    """Per-component raw scores. Each is on its own scale — see COMPONENT_MAX."""
+
+    formatting: float = Field(..., description='Section structure and bullets, out of 20')
+    keywords: float = Field(..., description='Keyword and skill coverage, out of 25')
+    content: float = Field(..., description='Action verbs and quantified impact, out of 25')
+    skill_validation: float = Field(..., description='Skills backed by evidence, out of 15')
+    ats_compatibility: float = Field(..., description='Parser-friendliness, out of 15')
+
+
+class JDMatch(BaseModel):
+    """Resume-versus-job-description comparison. Only present when a JD was supplied."""
+
+    match_percentage: float = Field(..., description='Blended keyword + semantic match, 0-100')
+    semantic_similarity: float = Field(..., description='Cosine similarity of embeddings, 0-1')
+    matched_keywords: List[str] = []
+    missing_keywords: List[str] = []
+    skills_gap: List[str] = []
+
+
+class ValidatedSkill(BaseModel):
+    """A skill the analyzer found concrete evidence for."""
+
+    skill: str
+    projects: List[str] = Field(
+        default=[],
+        description="Project titles (or 'Experience Section') that demonstrate this skill",
+    )
+    similarity: Optional[float] = Field(
+        default=None, description='Best match confidence, 0-1. 1.0 means a literal text match.'
+    )
+
+
+class SkillValidation(BaseModel):
+    """How many claimed skills are actually demonstrated elsewhere in the resume."""
+
+    validated: List[ValidatedSkill] = []
+    unvalidated: List[str] = []
+    total: int = 0
+    validated_count: int = 0
+    validation_pct: float = 0.0
+
+
+class IssueDetail(BaseModel):
+    """One specific, actionable problem found in the resume."""
+
+    issue_title: str
+    severity_level: str = Field(..., description='High | Moderate | Low')
+    ats_impact: str = Field(..., description='High | Medium | Low')
+    explanation: str
+    where_it_appears: str
+    how_to_fix: str
+    action_items: List[str] = []
+    example_improvement: str
+
+
+class AnalysisResponse(BaseModel):
+    """The complete result of one resume analysis."""
+
+    ats_score: float = Field(..., description='Overall score, 0-100')
+    interpretation: str = Field('', description='One-line plain-English reading of the score')
+    component_scores: ComponentScores
+    component_max: Dict[str, float] = Field(
+        default_factory=lambda: dict(COMPONENT_MAX),
+        description='Denominator for each component score',
+    )
+
+    strengths: List[str] = []
+    issues_summary: List[str] = Field([], description='Issue titles, for an at-a-glance list')
+    detailed_feedback: List[IssueDetail] = []
+
+    skill_validation: SkillValidation
+    jd_match: Optional[JDMatch] = None
+
+    skills: List[str] = Field([], description='Skills extracted from the resume')
+    experience_months: int = 0
+
+    filename: str = ''
+    analyzed_at: datetime
+
+
+class HistoryEntry(BaseModel):
+    """One saved analysis, as listed on the history page."""
+
+    id: str
+    filename: str
+    ats_score: float
+    jd_match_percentage: Optional[float] = None
+    created_at: datetime
+    analysis: Optional[Dict[str, Any]] = Field(
+        default=None, description='Full stored AnalysisResponse payload'
+    )

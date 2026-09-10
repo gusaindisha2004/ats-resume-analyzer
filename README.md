@@ -53,7 +53,7 @@ description's keywords.
 │   ├── services/       Parsing, LLM extraction, scoring, writing checks, reports
 │   ├── models/         Pydantic schemas — the API contract
 │   ├── database/       Supabase REST persistence
-│   └── tests/          121 tests, pytest
+│   └── tests/          178 tests, pytest
 └── web/                Next.js App Router frontend
     ├── src/app/        Routes: landing, analyze, history, login, auth callback
     ├── src/components/ Score gauge, breakdown, issue list, panels
@@ -128,12 +128,19 @@ create policy "own rows" on analyses
 pytest backend/tests -q
 ```
 
-121 tests covering keyword matching and alias resolution, each scoring component
-and its bounds, skill validation, location detection, spelling and style checks
-(with heavy emphasis on what must *not* be flagged), LLM response handling
-(malformed JSON, markdown fences, retries, type coercion), and a full pipeline
-run against the real spaCy and sentence-transformer models with only the Groq
-call mocked.
+178 tests, covering:
+
+- **HTTP layer** — auth (valid, malformed, expired, unconfigured), file upload,
+  status codes, and the full response body, driven through `TestClient`.
+- **File validation** — type detection by signature, including a renamed
+  executable and a non-Word ZIP, both of which must be rejected.
+- **Scoring** — every component and its bounds, aggregation, penalties.
+- **Skill validation** and location/privacy detection.
+- **Writing checks** — with heavy emphasis on what must *not* be flagged.
+- **LLM response handling** — malformed JSON, markdown fences, retries, coercion.
+- **Stored-analysis compatibility** — rows written by older versions still render.
+- **Full pipeline** against the real spaCy and sentence-transformer models,
+  with only the Groq call mocked.
 
 ## Notes and limitations
 
@@ -149,7 +156,9 @@ call mocked.
   deliberate sentence fragments, so a conventional checker floods the output
   with false positives on correctly-written text. See
   `backend/services/grammar_checker.py` for the reasoning and the filters.
-- **Legacy `.doc` is unsupported** — convert to `.docx` or PDF first.
+- **Legacy `.doc` is unsupported** — convert to `.docx` or PDF first. File type
+  is determined from the file's signature rather than its extension, so renaming
+  something to `.pdf` won't get it through.
 - The `jupyter notebooks/` research (BERT fine-tuning on resume/JD pairs) informed
   the approach but the fine-tuned model isn't wired in; runtime uses stock
   `all-MiniLM-L6-v2`.

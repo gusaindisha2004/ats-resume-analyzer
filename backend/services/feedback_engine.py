@@ -1,7 +1,7 @@
 # Issue detection — "what, specifically, is wrong with my resume?"
 
 import re
-from typing import List, Dict, Any, Optional
+from typing import Dict, List, Optional
 from backend.models.schemas import IssueDetail
 
 def analyze_issues(

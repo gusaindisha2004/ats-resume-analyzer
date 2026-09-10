@@ -31,14 +31,9 @@ ALLOWED_ORIGINS = [
 MAX_FILE_SIZE_MB=5
 MAX_FILE_SIZE_BYTES=MAX_FILE_SIZE_MB*1024*1024
 
-#Supported MIME types and their short names
-SUPPORTED_MIME_TYPES = {
-    'application/pdf': 'pdf',
-    'application/msword': 'doc',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-}
-
-SUPPORTED_EXTENSIONS = {'.pdf', '.doc', '.docx'}
+# Accepted document types. Detection is by file signature, not extension or
+# MIME string — see backend/services/resume_parser.detect_file_type.
+SUPPORTED_EXTENSIONS = {'.pdf', '.docx'}
 
 SPACY_MODEL_PRIMARY="en_core_web_md" #better accuracy
 SPACY_MODEL_SECONDARY = 'en_core_web_sm'

@@ -9,6 +9,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 import httpx
+from pydantic import ValidationError
 
 from backend.core.config import SUPABASE_KEY, SUPABASE_URL
 from backend.models.schemas import AnalysisResponse, HistoryEntry
@@ -35,8 +36,28 @@ def _headers(prefer: str = 'return=representation') -> Optional[Dict[str, str]]:
     }
 
 
+def _normalise_analysis(stored: Dict[str, Any]) -> Dict[str, Any]:
+    """Bring a stored analysis up to the current response shape.
+
+    Rows are JSONB written by whatever version of the app was deployed at the
+    time. A row saved before a field existed would otherwise reach the frontend
+    without it — and reading `analysis.grammar.score` off `undefined` crashes
+    the results view. Re-validating through the model fills in defaults.
+
+    If the row is too old or malformed to validate, it is returned untouched
+    rather than dropped: a degraded view beats losing the record.
+    """
+    if not stored:
+        return {}
+    try:
+        return AnalysisResponse.model_validate(stored).model_dump(mode='json')
+    except ValidationError as exc:
+        logger.warning(f'Stored analysis does not match the current schema: {exc}')
+        return stored
+
+
 def _to_history_entry(row: Dict[str, Any]) -> HistoryEntry:
-    analysis = row.get('analysis') or {}
+    analysis = _normalise_analysis(row.get('analysis') or {})
     jd_match = analysis.get('jd_match') or {}
     return HistoryEntry(
         id=str(row.get('id')),

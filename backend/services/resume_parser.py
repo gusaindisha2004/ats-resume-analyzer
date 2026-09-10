@@ -1,26 +1,21 @@
 import io
-import magic
-from typing import Tuple, Optional, Tuple
+import zipfile
+from typing import Optional, Tuple
 
 import pdfplumber
 from docx import Document
 import PyPDF2
 
 from backend.utils.file_utils import(
-    FileParsingError, 
-    TextExtractionError, 
-    FileUploadError, 
+    FileParsingError,
+    TextExtractionError,
     log_error, 
     log_warning, 
     log_info, 
     with_fallback
 )
 
-from backend.core.config import (
-    MAX_FILE_SIZE_BYTES,
-    MAX_FILE_SIZE_MB, 
-    SUPPORTED_MIME_TYPES
-)
+from backend.core.config import MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB
 
 class FileParsingError(Exception):
     pass
@@ -28,35 +23,74 @@ class FileParsingError(Exception):
 class FileValidationError(Exception):
     pass
 
-def validate_file(file_data:bytes, filename:str)->Tuple[bool, str, Optional[str]]:
+# File signatures. Sniffing these directly avoids depending on libmagic, whose
+# Python bindings need a native library that is awkward to install on Windows
+# (and whose two competing distributions, python-magic and python-magic-bin,
+# clobber each other when both are present).
+_PDF_MAGIC = bytes.fromhex('25504446')          # %PDF
+_ZIP_MAGIC = bytes.fromhex('504b0304')          # PK.. — any ZIP, incl. .docx
+_OLE2_MAGIC = bytes.fromhex('d0cf11e0a1b11ae1')  # OLE2 — legacy .doc
+
+
+def detect_file_type(file_data: bytes) -> Optional[str]:
+    """Identify the document type from its content, ignoring the filename.
+
+    Returns 'pdf', 'docx', 'doc', or None when it is none of those. Content is
+    authoritative here: an attacker (or an confused user) renaming `foo.exe` to
+    `foo.pdf` must not get past this.
+    """
+    if file_data.startswith(_PDF_MAGIC):
+        return 'pdf'
+
+    if file_data.startswith(_OLE2_MAGIC):
+        return 'doc'
+
+    if file_data.startswith(_ZIP_MAGIC):
+        # .docx is a ZIP with a known layout. Other Office formats (.xlsx,
+        # .pptx) are also ZIPs, so check for the Word document part itself
+        # rather than trusting the container.
+        try:
+            with zipfile.ZipFile(io.BytesIO(file_data)) as archive:
+                names = set(archive.namelist())
+        except zipfile.BadZipFile:
+            return None
+        if 'word/document.xml' in names:
+            return 'docx'
+        return None
+
+    return None
+
+
+def validate_file(file_data: bytes, filename: str) -> Tuple[bool, str, Optional[str]]:
+    """Check size and type. Returns (is_valid, error_message, file_type)."""
     file_size_bytes = len(file_data)
+
+    if file_size_bytes == 0:
+        return False, 'The uploaded file is empty. Please check the file and try again.', None
+
     if file_size_bytes > MAX_FILE_SIZE_BYTES:
         size_mb = file_size_bytes / (1024 * 1024)
         return False, (
             f'File size ({size_mb:.2f} MB) exceeds the maximum of {MAX_FILE_SIZE_MB} MB. '
             'Please upload a smaller file or compress your resume.'
         ), None
-    
-    if file_size_bytes == 0:
-        return False, (
-            'The uploaded file is empty. Please check the file and try again.'
-        ), None
-    
-    try:
-        mime_type=magic.from_buffer(file_data, mime=True)
-    except Exception as e:
-        return False, f"error deteminin the file type : {e}", None
-    
-    if mime_type not in SUPPORTED_MIME_TYPES:
-        supported=', '.join(SUPPORTED_MIME_TYPES.keys()).upper()
-        return False, (
-            f'Unsupported file type: {mime_type}. '
-            f'Please upload one of: {supported}.'
-        ), None
-    
-    
 
-    return True, '', SUPPORTED_MIME_TYPES[mime_type]
+    file_type = detect_file_type(file_data)
+
+    if file_type is None:
+        return False, (
+            "That file doesn't look like a PDF or Word document. "
+            'Please upload a .pdf or .docx file.'
+        ), None
+
+    if file_type == 'doc':
+        return False, (
+            'Legacy .doc files are not supported. Please re-save your resume as '
+            '.docx or PDF and try again.'
+        ), None
+
+    return True, '', file_type
+
 
 def _extract_pdf_hyperlinks(file_data: bytes) -> str:
     urls = []

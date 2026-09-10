@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LocalTime } from "@/components/ui/local-time";
 import { AnalysisResults } from "@/components/analysis-results";
+import { normalizeAnalysis } from "@/lib/normalize";
 
 function Row({
   entry,
@@ -100,7 +101,7 @@ function Row({
 
       {open && entry.analysis && (
         <div className="border-t border-border bg-surface-muted/30 p-4">
-          <AnalysisResults analysis={entry.analysis} />
+          <AnalysisResults analysis={normalizeAnalysis(entry.analysis)} />
         </div>
       )}
     </Card>

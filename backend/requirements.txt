@@ -24,8 +24,8 @@ pyspellchecker>=0.8         # spelling pass in grammar_checker
 pdfplumber>=0.11
 PyPDF2>=3.0
 python-docx>=1.1
-python-magic>=0.4.27
-python-magic-bin>=0.4.14; sys_platform == 'win32'   # bundles libmagic DLLs on Windows
+# NB: no python-magic. File types are detected from their signatures in
+# resume_parser.detect_file_type, which needs no native library.
 
 # ── PDF report generation ──
 jinja2>=3.1

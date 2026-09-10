@@ -4,9 +4,10 @@ import { useState } from "react";
 import { Check, Download, FileText, Loader2 } from "lucide-react";
 import type { AnalysisResponse } from "@/lib/types";
 import { ApiError, downloadReport } from "@/lib/api";
-import { formatDate, formatDuration } from "@/lib/utils";
+import { formatDuration } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { LocalTime } from "@/components/ui/local-time";
 import { ScoreGauge } from "@/components/score-gauge";
 import { ScoreBreakdown } from "@/components/score-breakdown";
 import { IssueList } from "@/components/issue-list";
@@ -143,7 +144,9 @@ export function AnalysisResults({ analysis }: { analysis: AnalysisResponse }) {
           <FileText className="size-3.5" aria-hidden />
           <span className="font-medium text-foreground">{analysis.filename}</span>
           <span aria-hidden>·</span>
-          <span>analyzed {formatDate(analysis.analyzed_at)}</span>
+          <span>
+            analyzed <LocalTime iso={analysis.analyzed_at} />
+          </span>
         </div>
       </Card>
 

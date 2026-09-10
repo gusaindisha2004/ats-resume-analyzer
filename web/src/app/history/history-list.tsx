@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Loader2, Trash2 } from "lucide-react";
 import { deleteHistoryEntry } from "@/lib/api";
 import type { HistoryEntry } from "@/lib/types";
-import { BAND_CLASSES, cn, formatDate, scoreBand } from "@/lib/utils";
+import { BAND_CLASSES, cn, scoreBand } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { LocalTime } from "@/components/ui/local-time";
 import { AnalysisResults } from "@/components/analysis-results";
 
 function Row({
@@ -52,7 +53,7 @@ function Row({
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{entry.filename}</p>
           <p className="text-xs text-muted-foreground">
-            {formatDate(entry.created_at)}
+            <LocalTime iso={entry.created_at} />
           </p>
           {error && (
             <p role="alert" className="text-xs text-rose-600 dark:text-rose-400">

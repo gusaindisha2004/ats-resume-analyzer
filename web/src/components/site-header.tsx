@@ -45,7 +45,7 @@ export async function SiteHeader() {
           ) : (
             <Link
               href="/login"
-              className="rounded-lg bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+              className="rounded-lg bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
             >
               Sign in
             </Link>

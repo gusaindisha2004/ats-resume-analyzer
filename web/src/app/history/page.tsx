@@ -39,7 +39,7 @@ export default async function HistoryPage() {
             <p className="text-sm text-muted-foreground">Nothing saved yet.</p>
             <Link
               href="/analyze"
-              className="mt-4 inline-block rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+              className="mt-4 inline-block rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
             >
               Analyze a resume
             </Link>

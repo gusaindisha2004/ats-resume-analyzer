@@ -10,9 +10,11 @@ const button = cva(
     variants: {
       variant: {
         primary:
-          "bg-primary text-primary-foreground hover:opacity-90 shadow-sm",
+          "bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm " +
+          "shadow-primary/20",
         outline:
-          "border border-border bg-surface hover:bg-surface-muted text-foreground",
+          "border border-border bg-surface text-foreground " +
+          "hover:bg-primary-subtle hover:border-primary/30",
         ghost: "hover:bg-surface-muted text-muted-foreground hover:text-foreground",
         danger:
           "text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50",

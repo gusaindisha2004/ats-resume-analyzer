@@ -23,7 +23,7 @@ const FEATURES = [
 export default function HomePage() {
   return (
     <div className="space-y-16">
-      <section className="pt-8 text-center sm:pt-16">
+      <section className="hero-wash pt-8 text-center sm:pt-16">
         <h1 className="mx-auto max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
           Find out what an ATS actually sees in your resume
         </h1>
@@ -34,13 +34,13 @@ export default function HomePage() {
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link
             href="/analyze"
-            className="rounded-lg bg-primary px-6 py-3 font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            className="rounded-lg bg-primary px-6 py-3 font-medium text-primary-foreground shadow-sm shadow-primary/25 transition-colors hover:bg-primary-hover"
           >
             Analyze a resume
           </Link>
           <Link
             href="#how"
-            className="rounded-lg border border-border px-6 py-3 font-medium transition-colors hover:bg-surface-muted"
+            className="rounded-lg border border-border bg-surface px-6 py-3 font-medium transition-colors hover:border-primary/30 hover:bg-primary-subtle"
           >
             How it works
           </Link>

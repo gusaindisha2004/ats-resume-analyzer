@@ -1,30 +1,56 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Design tokens. Light values live on :root; the dark block only overrides.
+   Blue-and-white theme.
+
+   The brand colour is a deep, vivid blue — dark enough to carry white text at
+   AA contrast, saturated enough to read as "bright" rather than navy. Neutrals
+   are not grey: every surface, border and text tone carries a little blue
+   chroma so white areas feel part of the same family rather than washed out.
+
+   Light values live on :root; the dark block only overrides.
    --------------------------------------------------------------------------- */
 :root {
-  --background: oklch(99% 0.003 250);
+  /* Surfaces: white cards on a faintly blue page. */
+  --background: oklch(98.5% 0.009 250);
   --surface: oklch(100% 0 0);
-  --surface-muted: oklch(97% 0.005 250);
-  --foreground: oklch(21% 0.02 265);
-  --muted-foreground: oklch(52% 0.02 265);
-  --border: oklch(92% 0.006 265);
-  --primary: oklch(52% 0.19 268);
-  --primary-foreground: oklch(99% 0 0);
+  --surface-muted: oklch(96.3% 0.018 250);
+
+  /* Text: near-black with a navy cast, never pure grey. */
+  --foreground: oklch(21% 0.045 258);
+  --muted-foreground: oklch(50% 0.035 255);
+
+  --border: oklch(90% 0.022 250);
+
+  /* The brand colour. */
+  --primary: oklch(48% 0.235 262);
+  --primary-hover: oklch(42% 0.225 262);
+  --primary-foreground: oklch(100% 0 0);
+
+  /* Tinted wash for hero and accent areas. */
+  --primary-subtle: oklch(95% 0.035 255);
+
   --radius: 0.75rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: oklch(17% 0.015 265);
-    --surface: oklch(21% 0.018 265);
-    --surface-muted: oklch(25% 0.02 265);
-    --foreground: oklch(96% 0.005 265);
-    --muted-foreground: oklch(70% 0.02 265);
-    --border: oklch(30% 0.02 265);
-    --primary: oklch(68% 0.17 268);
-    --primary-foreground: oklch(17% 0.015 265);
+    /* Deep navy rather than neutral charcoal. */
+    --background: oklch(16% 0.032 258);
+    --surface: oklch(20.5% 0.036 258);
+    --surface-muted: oklch(25% 0.042 258);
+
+    --foreground: oklch(97% 0.012 250);
+    --muted-foreground: oklch(73% 0.028 250);
+
+    --border: oklch(31% 0.042 258);
+
+    /* Lifted and brightened so it still reads as vivid against navy. */
+    --primary: oklch(66% 0.21 261);
+    --primary-hover: oklch(72% 0.19 261);
+    --primary-foreground: oklch(15% 0.03 258);
+
+    --primary-subtle: oklch(27% 0.06 258);
   }
 }
 
@@ -36,7 +62,9 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-subtle: var(--primary-subtle);
   --radius-card: var(--radius);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -83,4 +111,25 @@
   .animate-rise {
     animation: none;
   }
+}
+
+/* Soft blue wash behind the landing hero. Sits under the content, fades out
+   before the fold, and is purely decorative. */
+.hero-wash {
+  position: relative;
+  isolation: isolate;
+}
+
+.hero-wash::before {
+  content: "";
+  position: absolute;
+  inset: -6rem -50vw 0;
+  z-index: -1;
+  background:
+    radial-gradient(
+      60% 70% at 50% 0%,
+      color-mix(in oklch, var(--primary) 16%, transparent) 0%,
+      transparent 70%
+    );
+  pointer-events: none;
 }

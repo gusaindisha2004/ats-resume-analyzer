@@ -11,16 +11,20 @@
    Light values live on :root; the dark block only overrides.
    --------------------------------------------------------------------------- */
 :root {
-  /* Surfaces: white cards on a faintly blue page. */
-  --background: oklch(98.5% 0.009 250);
+  /* Pure white page and pure white cards. With no tonal difference between
+     them, a card is defined entirely by its border — so the border carries
+     more weight here than it would on a tinted page. */
+  --background: oklch(100% 0 0);
   --surface: oklch(100% 0 0);
-  --surface-muted: oklch(96.3% 0.018 250);
+  /* Still tinted: this is what separates inset areas (progress tracks, code
+     blocks, tab strips) from the white around them. */
+  --surface-muted: oklch(96.5% 0.016 250);
 
   /* Text: near-black with a navy cast, never pure grey. */
   --foreground: oklch(21% 0.045 258);
   --muted-foreground: oklch(50% 0.035 255);
 
-  --border: oklch(90% 0.022 250);
+  --border: oklch(88% 0.026 250);
 
   /* The brand colour. */
   --primary: oklch(48% 0.235 262);
@@ -128,7 +132,7 @@
   background:
     radial-gradient(
       60% 70% at 50% 0%,
-      color-mix(in oklch, var(--primary) 16%, transparent) 0%,
+      color-mix(in oklch, var(--primary) 9%, transparent) 0%,
       transparent 70%
     );
   pointer-events: none;

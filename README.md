@@ -100,27 +100,20 @@ App at http://localhost:3000.
 
 ### 3. Database
 
-Create the `analyses` table in the Supabase SQL editor:
+Paste [`scripts/schema.sql`](scripts/schema.sql) into the Supabase SQL editor
+(Dashboard → SQL Editor → New query → Run). It creates the `analyses` table,
+its index, and the row-level-security policy. Re-running it is safe.
 
-```sql
-create table analyses (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references auth.users on delete cascade,
-  filename    text not null,
-  ats_score   real not null default 0,
-  analysis    jsonb not null,
-  created_at  timestamptz not null default now()
-);
+### 4. Check the setup
 
-create index analyses_user_created_idx on analyses (user_id, created_at desc);
-
--- The backend uses the service_role key and scopes every query by user_id,
--- but RLS is enabled so the anon key can never read another user's rows.
-alter table analyses enable row level security;
-
-create policy "own rows" on analyses
-  for all using (auth.uid() = user_id);
+```bash
+python scripts/check_setup.py
 ```
+
+Verifies every credential the app needs — that the keys are present, that Groq
+accepts yours, that the Supabase project is reachable, and that the `analyses`
+table exists. It prints what is wrong and where to fix it, and never prints a
+secret.
 
 ## Tests
 

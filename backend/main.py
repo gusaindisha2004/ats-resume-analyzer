@@ -3,8 +3,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from backend.api.routes import router
+from backend.core.rate_limit import limiter
 from backend.core.config import (
     ALLOWED_ORIGINS,
     APP_DESCRIPTION,
@@ -52,6 +55,30 @@ app = FastAPI(
     docs_url='/docs',
     redoc_url='/redoc',
 )
+
+# Rate limiting. The middleware applies the default limit to every route;
+# per-route decorators tighten it where a request is expensive.
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+
+
+@app.exception_handler(RateLimitExceeded)
+async def _rate_limit_handler(request, exc: RateLimitExceeded):
+    """Answer with a readable message and Retry-After rather than slowapi's
+    terse default, so the frontend can show something useful."""
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=429,
+        content={
+            'detail': (
+                'Too many requests. This is a portfolio deployment with a '
+                'shared API budget — please wait a little and try again.'
+            )
+        },
+        headers={'Retry-After': '60'},
+    )
+
 
 app.add_middleware(
     CORSMiddleware,

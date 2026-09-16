@@ -4,6 +4,8 @@ Scores a resume the way an applicant tracking system would, and — the part mos
 tools skip — checks whether the skills you claim are actually demonstrated
 anywhere in your projects or experience.
 
+[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+
 **Next.js 16 · React 19 · TypeScript · FastAPI · spaCy · Sentence Transformers · Groq · Supabase**
 
 ---
@@ -53,7 +55,7 @@ description's keywords.
 │   ├── services/       Parsing, LLM extraction, scoring, writing checks, reports
 │   ├── models/         Pydantic schemas — the API contract
 │   ├── database/       Supabase REST persistence
-│   └── tests/          178 tests, pytest
+│   └── tests/          191 tests, pytest
 └── web/                Next.js App Router frontend
     ├── src/app/        Routes: landing, analyze, history, login, auth callback
     ├── src/components/ Score gauge, breakdown, issue list, panels
@@ -118,10 +120,14 @@ secret.
 ## Tests
 
 ```bash
-pytest backend/tests -q
+pytest backend/tests -q          # backend, 191 tests
+npm test --prefix web            # frontend, 51 tests
 ```
 
-178 tests, covering:
+Both run on every push via [GitHub Actions](.github/workflows/ci.yml), along
+with typecheck, lint and a production build.
+
+**Backend — 191 tests** covering:
 
 - **HTTP layer** — auth (valid, malformed, expired, unconfigured), file upload,
   status codes, and the full response body, driven through `TestClient`.
@@ -132,8 +138,32 @@ pytest backend/tests -q
 - **Writing checks** — with heavy emphasis on what must *not* be flagged.
 - **LLM response handling** — malformed JSON, markdown fences, retries, coercion.
 - **Stored-analysis compatibility** — rows written by older versions still render.
+- **Rate limiting** — per-caller identity, quota enforcement, and that one
+  caller hitting the wall doesn't lock out everyone else.
 - **Full pipeline** against the real spaCy and sentence-transformer models,
   with only the Groq call mocked.
+
+**Frontend — 51 tests** (Vitest + Testing Library) covering the score gauge and
+its accessible name, issue grouping and expansion, the writing-quality panel,
+upload validation through both the picker and drag-and-drop, and the normaliser
+that keeps an older stored analysis from blanking the page.
+
+## Rate limits
+
+The analyze endpoint spends Groq tokens and several seconds of CPU, so it is
+limited per caller — by authenticated user where there is one, falling back to
+client IP (honouring `X-Forwarded-For`, since behind a proxy every request
+otherwise shares one address).
+
+| Endpoint | Default | Env var |
+| --- | --- | --- |
+| `POST /analyze-resume` | 10/hour | `RATE_LIMIT_ANALYZE` |
+| PDF report endpoints | 30/hour | `RATE_LIMIT_REPORTS` |
+| everything else | 120/minute | `RATE_LIMIT_DEFAULT` |
+
+Set `RATE_LIMIT_ENABLED=false` to turn it off. Storage is in-process, which is
+right for a single container; point `RATE_LIMIT_STORAGE_URI` at Redis to share
+counters across replicas.
 
 ## Notes and limitations
 
@@ -152,6 +182,8 @@ pytest backend/tests -q
 - **Legacy `.doc` is unsupported** — convert to `.docx` or PDF first. File type
   is determined from the file's signature rather than its extension, so renaming
   something to `.pdf` won't get it through.
-- The `jupyter notebooks/` research (BERT fine-tuning on resume/JD pairs) informed
-  the approach but the fine-tuned model isn't wired in; runtime uses stock
-  `all-MiniLM-L6-v2`.
+- **The scoring weights are heuristics, not calibrated values.** They were
+  chosen to be reasonable, not derived from labelled outcome data, and no
+  public dataset of "resumes that passed an ATS" exists to fit them against.
+  Treat the score as a consistent rubric for comparing drafts of the same
+  resume, not as a prediction of what any particular ATS will do.

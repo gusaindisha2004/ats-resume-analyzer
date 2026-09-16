@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import Response
 
 from backend.api.auth import get_current_user
+from backend.core.rate_limit import ANALYZE_LIMIT, REPORT_LIMIT, limiter
 from backend.models.schemas import AnalysisResponse, HistoryEntry
 
 logger = logging.getLogger('ats_resume_scorer')
@@ -17,8 +18,10 @@ router = APIRouter(prefix='/api/v1', tags=['Analysis'])
     response_model=AnalysisResponse,
     summary='Analyze a resume, optionally against a job description',
 )
+@limiter.limit(ANALYZE_LIMIT)
 async def analyze_resume(
     request: Request,
+    response: Response,
     resume: UploadFile = File(..., description='Resume file — PDF or DOCX, max 5 MB'),
     job_description: str = Form('', description='Job description text (optional)'),
     user_id: str = Depends(get_current_user),
@@ -124,7 +127,13 @@ def _pdf_response(analysis: dict, filename: str) -> Response:
 
 
 @router.post('/reports/pdf', summary='Render an analysis payload as a PDF report')
-async def generate_pdf(data: AnalysisResponse, user_id: str = Depends(get_current_user)) -> Response:
+@limiter.limit(REPORT_LIMIT)
+async def generate_pdf(
+    request: Request,
+    response: Response,
+    data: AnalysisResponse,
+    user_id: str = Depends(get_current_user),
+) -> Response:
     from backend.services.pdf_export import PdfUnavailableError
 
     try:
@@ -137,7 +146,13 @@ async def generate_pdf(data: AnalysisResponse, user_id: str = Depends(get_curren
 
 
 @router.get('/history/{analysis_id}/pdf', summary='PDF report for a saved analysis')
-async def generate_history_pdf(analysis_id: str, user_id: str = Depends(get_current_user)) -> Response:
+@limiter.limit(REPORT_LIMIT)
+async def generate_history_pdf(
+    request: Request,
+    response: Response,
+    analysis_id: str,
+    user_id: str = Depends(get_current_user),
+) -> Response:
     from backend.database.supabase_db import get_analysis
     from backend.services.pdf_export import PdfUnavailableError
 

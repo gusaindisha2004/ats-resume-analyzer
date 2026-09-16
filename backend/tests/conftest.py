@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -5,6 +6,13 @@ import pytest
 
 # Make `import backend.…` work no matter where pytest is invoked from.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+# Rate limits are production behaviour, not something the rest of the suite
+# should have to budget around — a handful of analyze tests would otherwise
+# exhaust the hourly allowance and fail the run. Must be set before
+# backend.core.rate_limit is imported, since the Limiter reads it at import.
+# test_rate_limit.py re-enables it deliberately.
+os.environ.setdefault('RATE_LIMIT_ENABLED', 'false')
 
 
 class FakeEmbedder:

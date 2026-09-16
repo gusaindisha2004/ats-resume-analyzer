@@ -119,6 +119,8 @@ def analyze_full_resume(
 
     return {
         "ats_score":         scores['overall_score'],
+        "base_score":        scores['base_score'],
+        "adjustments":       scores['adjustments'],
         "interpretation":    scores.get('overall_interpretation', ''),
         "component_scores": {
             "formatting":        scores['formatting_score'],

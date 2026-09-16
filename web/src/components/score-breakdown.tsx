@@ -1,4 +1,9 @@
-import { COMPONENT_META, type ComponentScores, type ComponentKey } from "@/lib/types";
+import {
+  COMPONENT_META,
+  type ComponentKey,
+  type ComponentScores,
+  type ScoreAdjustment,
+} from "@/lib/types";
 import { BAND_CLASSES, cn, scoreBand } from "@/lib/utils";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 
@@ -58,10 +63,21 @@ function Row({
 export function ScoreBreakdown({
   scores,
   max,
+  baseScore,
+  adjustments = [],
+  total,
 }: {
   scores: ComponentScores;
   max: Record<ComponentKey, number>;
+  baseScore?: number;
+  adjustments?: ScoreAdjustment[];
+  total?: number;
 }) {
+  // The component maxima are the weights, so the five scores add to the base.
+  const summed =
+    baseScore ??
+    COMPONENT_META.reduce((acc, meta) => acc + scores[meta.key], 0);
+
   return (
     <Card>
       <CardHeader
@@ -79,6 +95,45 @@ export function ScoreBreakdown({
             delay={i * 60}
           />
         ))}
+
+        {/* Reconciliation. Without this the five rows above wouldn't visibly
+            account for the headline number, which is exactly the criticism
+            the old two-layer weighting deserved. */}
+        <div className="space-y-2 border-t border-border pt-4 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Component total</span>
+            <span className="tabular-nums font-medium">
+              {summed.toFixed(1)} / 100
+            </span>
+          </div>
+
+          {adjustments.map((item) => (
+            <div key={item.label} className="flex justify-between gap-4">
+              <span className="min-w-0 text-muted-foreground">
+                {item.label}
+                <span className="block text-xs opacity-70">{item.reason}</span>
+              </span>
+              <span
+                className={cn(
+                  "shrink-0 tabular-nums font-medium",
+                  item.points >= 0
+                    ? "text-emerald-700 dark:text-emerald-400"
+                    : "text-rose-700 dark:text-rose-400",
+                )}
+              >
+                {item.points > 0 ? "+" : ""}
+                {item.points.toFixed(1)}
+              </span>
+            </div>
+          ))}
+
+          {total !== undefined && (
+            <div className="flex justify-between border-t border-border pt-2 font-semibold">
+              <span>Overall score</span>
+              <span className="tabular-nums">{total.toFixed(1)}</span>
+            </div>
+          )}
+        </div>
       </CardBody>
     </Card>
   );

@@ -32,20 +32,45 @@ Upload a PDF or DOCX resume, optionally paste a job posting, and get back:
 
 ## How the score works
 
-The five components are scored on their own scales, converted to percentages,
-then re-weighted into the final number:
+Five components are scored directly on their point scales. Those scales are the
+weights, and they sum to 100 — so **the breakdown adds up to the score**, with
+no hidden second layer of maths between them.
 
-| Component         | Raw scale | Weight in final score      |
-| ----------------- | --------- | -------------------------- |
-| Keywords & skills | /25       | 40% combined with          |
-| Skill validation  | /15       | ↳ (keywords 60 / skills 40) |
-| Content quality   | /25       | 30%                        |
-| Formatting        | /20       | 15%                        |
-| ATS compatibility | /15       | 15%                        |
+| Component | Points | Why this weight |
+| --- | --- | --- |
+| Keywords & skills | 25 | An ATS screen is fundamentally keyword matching. Failing it means no human sees the resume. |
+| Content quality | 25 | What a recruiter reads once past the filter: action verbs, quantified outcomes. |
+| Formatting | 20 | A resume the parser mangles loses everything else — but modern parsers are tolerant, so it ranks below the two above. |
+| Skill validation | 15 | Whether claimed skills are evidenced. A credibility signal a recruiter checks, not something an ATS scores. |
+| ATS compatibility | 15 | Specific parser hazards: tables, box-drawing glyphs, street addresses. Narrow in scope. |
 
-Bonuses apply for high skill validation; penalties apply for privacy risks
-(street addresses, ZIP codes) and for missing a large share of the job
-description's keywords.
+A few small adjustments then apply to the total — a bonus when nearly every
+skill is evidenced or the writing is clean, and a deduction when a large share
+of the job description's keywords are missing. Each is returned with the score
+and shown in the UI, so the gap between the component total and the headline
+number is always accounted for:
+
+```
+Component total                                    78.0 / 100
+Clean writing                                            +1.0
+Missing job description keywords  (42% absent)           -8.0
+Overall score                                            71.0
+```
+
+Grammar and location penalties are deliberately *not* in that list — they're
+already subtracted inside the content and ATS-compatibility components, and
+applying them again would punish one fault twice.
+
+All of this lives in one place, [`SCORE_WEIGHTS` in `backend/core/config.py`](backend/core/config.py),
+which is imported by the scorer and by the API schema. Change a weight there
+and it changes everywhere; a test asserts the five still sum to 100.
+
+> **On where the numbers come from.** These weights are reasoned judgement
+> calls, not values fitted to data. No public dataset of "resumes that passed
+> an ATS" exists to calibrate against, and inventing one would be worse than
+> admitting the gap. Treat the score as a consistent rubric for comparing
+> drafts of the same resume, not as a prediction of what any particular ATS
+> will do with it.
 
 ## Architecture
 
@@ -55,7 +80,7 @@ description's keywords.
 │   ├── services/       Parsing, LLM extraction, scoring, writing checks, reports
 │   ├── models/         Pydantic schemas — the API contract
 │   ├── database/       Supabase REST persistence
-│   └── tests/          191 tests, pytest
+│   └── tests/          200 tests, pytest
 └── web/                Next.js App Router frontend
     ├── src/app/        Routes: landing, analyze, history, login, auth callback
     ├── src/components/ Score gauge, breakdown, issue list, panels
@@ -120,20 +145,22 @@ secret.
 ## Tests
 
 ```bash
-pytest backend/tests -q          # backend, 191 tests
+pytest backend/tests -q          # backend, 200 tests
 npm test --prefix web            # frontend, 51 tests
 ```
 
 Both run on every push via [GitHub Actions](.github/workflows/ci.yml), along
 with typecheck, lint and a production build.
 
-**Backend — 191 tests** covering:
+**Backend — 200 tests** covering:
 
 - **HTTP layer** — auth (valid, malformed, expired, unconfigured), file upload,
   status codes, and the full response body, driven through `TestClient`.
 - **File validation** — type detection by signature, including a renamed
   executable and a non-Word ZIP, both of which must be rejected.
-- **Scoring** — every component and its bounds, aggregation, penalties.
+- **Scoring** — every component and its bounds, and that the breakdown
+  reconciles: weights sum to 100, components sum to the base, base plus
+  adjustments equals the total, and no penalty is counted twice.
 - **Skill validation** and location/privacy detection.
 - **Writing checks** — with heavy emphasis on what must *not* be flagged.
 - **LLM response handling** — malformed JSON, markdown fences, retries, coercion.
@@ -182,8 +209,5 @@ counters across replicas.
 - **Legacy `.doc` is unsupported** — convert to `.docx` or PDF first. File type
   is determined from the file's signature rather than its extension, so renaming
   something to `.pdf` won't get it through.
-- **The scoring weights are heuristics, not calibrated values.** They were
-  chosen to be reasonable, not derived from labelled outcome data, and no
-  public dataset of "resumes that passed an ATS" exists to fit them against.
-  Treat the score as a consistent rubric for comparing drafts of the same
-  resume, not as a prediction of what any particular ATS will do.
+- **The scoring weights are heuristics, not calibrated values** — see
+  [How the score works](#how-the-score-works) for the reasoning and the caveat.

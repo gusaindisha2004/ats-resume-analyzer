@@ -34,6 +34,8 @@ export function normalizeAnalysis(
     interpretation: a.interpretation ?? "",
     component_scores: { ...ZERO_SCORES, ...(a.component_scores ?? {}) },
     component_max: { ...DEFAULT_MAX, ...(a.component_max ?? {}) },
+    base_score: a.base_score ?? a.ats_score ?? 0,
+    adjustments: a.adjustments ?? [],
     strengths: a.strengths ?? [],
     issues_summary: a.issues_summary ?? [],
     detailed_feedback: a.detailed_feedback ?? [],

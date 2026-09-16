@@ -10,15 +10,12 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-# Maximum points available per component. The frontend renders each component
-# as `score / max`, so this has to stay in sync with backend/services/ats_scorer.py.
-COMPONENT_MAX: Dict[str, float] = {
-    'formatting': 20.0,
-    'keywords': 25.0,
-    'content': 25.0,
-    'skill_validation': 15.0,
-    'ats_compatibility': 15.0,
-}
+from backend.core.config import SCORE_WEIGHTS
+
+# Points each component contributes, straight from the single weight table.
+# The frontend renders each component as `score / max`, and because the maxima
+# are the weights, those five fractions add up to the overall score.
+COMPONENT_MAX: Dict[str, float] = dict(SCORE_WEIGHTS)
 
 
 class ComponentScores(BaseModel):
@@ -87,6 +84,18 @@ class GrammarReport(BaseModel):
     minor: List[WritingIssue] = []
 
 
+class ScoreAdjustment(BaseModel):
+    """A bonus or penalty applied to the summed component total.
+
+    Without these, the five component scores wouldn't add up to the overall
+    score and the difference would be unexplained.
+    """
+
+    label: str
+    points: float = Field(..., description='Signed; negative is a penalty')
+    reason: str
+
+
 class IssueDetail(BaseModel):
     """One specific, actionable problem found in the resume."""
 
@@ -108,7 +117,13 @@ class AnalysisResponse(BaseModel):
     component_scores: ComponentScores
     component_max: Dict[str, float] = Field(
         default_factory=lambda: dict(COMPONENT_MAX),
-        description='Denominator for each component score',
+        description='Points each component contributes; these sum to 100',
+    )
+    base_score: float = Field(
+        0.0, description='Sum of the component scores, before adjustments'
+    )
+    adjustments: List[ScoreAdjustment] = Field(
+        [], description='Bonuses and penalties applied to the component total'
     )
 
     strengths: List[str] = []

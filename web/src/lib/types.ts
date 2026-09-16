@@ -49,6 +49,13 @@ export interface GrammarReport {
   minor: WritingIssue[];
 }
 
+export interface ScoreAdjustment {
+  label: string;
+  /** Signed — negative is a penalty. */
+  points: number;
+  reason: string;
+}
+
 export type Severity = "High" | "Moderate" | "Low";
 
 export interface IssueDetail {
@@ -67,6 +74,8 @@ export interface AnalysisResponse {
   interpretation: string;
   component_scores: ComponentScores;
   component_max: Record<ComponentKey, number>;
+  base_score: number;
+  adjustments: ScoreAdjustment[];
 
   strengths: string[];
   issues_summary: string[];

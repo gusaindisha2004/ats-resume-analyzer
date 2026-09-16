@@ -39,14 +39,61 @@ SPACY_MODEL_PRIMARY="en_core_web_md" #better accuracy
 SPACY_MODEL_SECONDARY = 'en_core_web_sm'
 SENTENCE_TRANSFORMER_MODEL = os.getenv("SENTENCE_TRANSFORMER_MODEL", "all-MiniLM-L6-v2")
 
-# Score component weights — this is business logic treated as config
+# ── Scoring ─────────────────────────────────────────────────────────────────
+# Points each component contributes to the final score out of 100. These ARE
+# the weights — a component's score is computed directly on this scale and the
+# five are summed, so the breakdown the user sees adds up to the total they
+# were given. There is deliberately no second re-weighting layer.
+#
+# The ordering is a judgement call, reasoned as follows:
+#
+#   keywords (25)          An ATS screen is fundamentally keyword matching.
+#                          Failing it means no human ever sees the resume.
+#   content (25)           What a recruiter actually reads once past the
+#                          filter: action verbs and quantified outcomes.
+#   formatting (20)        A resume the parser mangles loses everything else,
+#                          but modern parsers are tolerant enough that this
+#                          ranks below the two above.
+#   skill_validation (15)  Whether claimed skills are evidenced. A credibility
+#                          signal a recruiter checks, not something an ATS
+#                          scores — hence lower.
+#   ats_compatibility (15) Specific parser hazards (tables, glyphs, addresses).
+#                          Narrow, so weighted like the above.
+#
+# These are NOT fitted to outcome data. No public dataset of "resumes that
+# passed an ATS" exists to calibrate against, so treat the score as a
+# consistent rubric for comparing drafts of one resume rather than a
+# prediction about any particular ATS. Changing a weight here changes the
+# score everywhere, and the tests assert the total stays 100.
 SCORE_WEIGHTS = {
-    "formatting": 20, "keywords": 25, "content": 25,
-    "skill_validation": 15, "ats_compatibility": 15,
+    'keywords': 25.0,
+    'content': 25.0,
+    'formatting': 20.0,
+    'skill_validation': 15.0,
+    'ats_compatibility': 15.0,
 }
 
-JD_KEYWORD_WEIGHT=0.6
-JD_SEMANTIC_WEIGHT=0.4
+# Blend used when comparing a resume against a job description: exact keyword
+# overlap dominates because that is what an ATS matches on, with embedding
+# similarity as a softer signal for wording the keyword pass would miss.
+JD_KEYWORD_WEIGHT = 0.6
+JD_SEMANTIC_WEIGHT = 0.4
+
+# Adjustments applied to the summed total. Kept small on purpose: they nudge,
+# they don't decide. Grammar and location penalties are NOT here — those are
+# already subtracted inside the content and ats_compatibility components, and
+# applying them again would double-count.
+BONUS_SKILL_VALIDATION_EXCELLENT = 2.0   # >= 90% of skills evidenced
+BONUS_SKILL_VALIDATION_GOOD = 1.0        # >= 80%
+BONUS_CLEAN_WRITING = 1.0                # no spelling or style findings
+
+# Missing a large share of a job description's keywords is the single clearest
+# signal a resume will be filtered out, so it is the one large deduction.
+JD_MISSING_PENALTIES = (
+    (0.7, 15.0),   # more than 70% of JD keywords absent
+    (0.5, 10.0),
+    (0.3, 5.0),
+)
 
 SUPABASE_URL       = os.getenv('SUPABASE_URL', '')
 SUPABASE_KEY       = os.getenv('SUPABASE_KEY', '')          # service_role — DB writes (bypasses RLS)

@@ -17,6 +17,15 @@ const FIXTURE: AnalysisResponse = {
     formatting: 20, keywords: 25, content: 25,
     skill_validation: 15, ats_compatibility: 15,
   },
+  base_score: 78,
+  adjustments: [
+    { label: "Clean writing", points: 1, reason: "No spelling or phrasing problems were found." },
+    {
+      label: "Missing job description keywords",
+      points: -8,
+      reason: "42% of the terms in the posting are absent from your resume.",
+    },
+  ],
   strengths: [
     "Has a dedicated Experience section",
     "Includes a Projects section showcasing applied skills",

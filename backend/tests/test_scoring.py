@@ -260,7 +260,8 @@ class TestOverallScore:
             jd_keywords=['COBOL', 'Fortran', 'SAP', 'Salesforce', 'Mainframe'],
         )
         assert misaligned['overall_score'] < aligned['overall_score']
-        assert 'missing_jd_keywords' in misaligned['penalties']
+        labels = [a['label'] for a in misaligned['adjustments']]
+        assert 'Missing job description keywords' in labels
 
     def test_interpretation_accompanies_every_score(self, parsed_resume, embedder):
         assert self._score(parsed_resume, embedder)['overall_interpretation']
@@ -280,3 +281,115 @@ class TestOverallScore:
             experience_months=months,
         )
         assert 0.0 <= scores['overall_score'] <= 100.0
+
+
+class TestScoreComposition:
+    """The score has to be explainable from what the user is shown.
+
+    Before this was collapsed to one layer, components were scored out of
+    20/25/25/15/15, converted to percentages, then re-weighted 15/24/30/16/15 —
+    so the breakdown on screen didn't correspond to the total beside it.
+    """
+
+    def _score(self, parsed_resume, embedder, **kwargs):
+        validation = validate_skills_with_projects(
+            parsed_resume['skills'], parsed_resume['projects'],
+            parsed_resume['experience'], embedder,
+        )
+        return calculate_overall_score(
+            text=RESUME_TEXT,
+            parsed_resume=parsed_resume,
+            skills=parsed_resume['skills'],
+            keywords=parsed_resume['keywords'],
+            action_verbs=parsed_resume['action_verbs'],
+            skill_validation_results=validation,
+            grammar_results=get_default_grammar_results(),
+            location_results=get_default_location_results(),
+            **kwargs,
+        )
+
+    def test_the_weights_sum_to_one_hundred(self):
+        from backend.core.config import SCORE_WEIGHTS
+
+        assert sum(SCORE_WEIGHTS.values()) == 100.0
+
+    def test_component_maxima_come_from_the_weights(self):
+        """One source of truth — the API's denominators are the weights."""
+        from backend.core.config import SCORE_WEIGHTS
+        from backend.models.schemas import COMPONENT_MAX
+
+        assert COMPONENT_MAX == SCORE_WEIGHTS
+
+    def test_components_sum_to_the_base_score(self, parsed_resume, embedder):
+        scores = self._score(parsed_resume, embedder)
+        summed = (
+            scores['formatting_score']
+            + scores['keywords_score']
+            + scores['content_score']
+            + scores['skill_validation_score']
+            + scores['ats_compatibility_score']
+        )
+        assert summed == pytest.approx(scores['base_score'], abs=0.3)
+
+    def test_base_plus_adjustments_equals_the_total(self, parsed_resume, embedder):
+        scores = self._score(parsed_resume, embedder)
+        expected = scores['base_score'] + sum(
+            a['points'] for a in scores['adjustments']
+        )
+        assert scores['overall_score'] == pytest.approx(
+            min(100.0, max(0.0, expected)), abs=0.3
+        )
+
+    def test_every_adjustment_explains_itself(self, parsed_resume, embedder):
+        scores = self._score(parsed_resume, embedder)
+        for item in scores['adjustments']:
+            assert item['label']
+            assert item['reason']
+            assert isinstance(item['points'], float)
+
+    def test_grammar_is_not_penalised_twice(self, parsed_resume, embedder):
+        """The grammar penalty is already inside the content component.
+        Re-applying it at the total would punish one fault twice."""
+        bad_grammar = {**get_default_grammar_results(), 'total_errors': 5, 'penalty_applied': 6.0}
+        validation = validate_skills_with_projects(
+            parsed_resume['skills'], parsed_resume['projects'],
+            parsed_resume['experience'], embedder,
+        )
+        scores = calculate_overall_score(
+            text=RESUME_TEXT, parsed_resume=parsed_resume,
+            skills=parsed_resume['skills'], keywords=parsed_resume['keywords'],
+            action_verbs=parsed_resume['action_verbs'],
+            skill_validation_results=validation,
+            grammar_results=bad_grammar,
+            location_results=get_default_location_results(),
+        )
+        labels = [a['label'] for a in scores['adjustments']]
+        assert not any('grammar' in label.lower() or 'writing' in label.lower() for label in labels)
+
+    def test_location_is_not_penalised_twice(self, parsed_resume, embedder):
+        risky = {**get_default_location_results(), 'penalty_applied': 5.0, 'privacy_risk': 'high'}
+        validation = validate_skills_with_projects(
+            parsed_resume['skills'], parsed_resume['projects'],
+            parsed_resume['experience'], embedder,
+        )
+        scores = calculate_overall_score(
+            text=RESUME_TEXT, parsed_resume=parsed_resume,
+            skills=parsed_resume['skills'], keywords=parsed_resume['keywords'],
+            action_verbs=parsed_resume['action_verbs'],
+            skill_validation_results=validation,
+            grammar_results=get_default_grammar_results(),
+            location_results=risky,
+        )
+        labels = [a['label'] for a in scores['adjustments']]
+        assert not any('location' in label.lower() or 'privacy' in label.lower() for label in labels)
+
+    def test_clean_writing_earns_a_bonus(self, parsed_resume, embedder):
+        scores = self._score(parsed_resume, embedder)
+        labels = [a['label'] for a in scores['adjustments']]
+        assert 'Clean writing' in labels
+
+    def test_adjustments_stay_small_relative_to_the_components(self, parsed_resume, embedder):
+        """Adjustments nudge; they must not be able to decide the score."""
+        scores = self._score(parsed_resume, embedder)
+        positive = sum(a['points'] for a in scores['adjustments'] if a['points'] > 0)
+        assert positive <= 5.0

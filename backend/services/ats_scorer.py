@@ -5,6 +5,13 @@ from sentence_transformers import SentenceTransformer
 from typing import Dict, List, Optional, Tuple
 
 from backend.utils.file_utils import log_warning
+from backend.core.config import (
+    BONUS_CLEAN_WRITING,
+    BONUS_SKILL_VALIDATION_EXCELLENT,
+    BONUS_SKILL_VALIDATION_GOOD,
+    JD_MISSING_PENALTIES,
+    SCORE_WEIGHTS,
+)
 from backend.utils.matching import fuzzy_match_keywords
 
 ZIP_CODE_PATTERN = r'\b\d{5}(?:-\d{4})?\b'
@@ -152,7 +159,7 @@ def validate_skills_with_projects(
             skill_project_mapping[skill] = []
 
     validation_percentage = len(validated_skills) / len(skills)
-    validation_score      = validation_percentage * 15.0
+    validation_score      = validation_percentage * SCORE_WEIGHTS['skill_validation']
 
     return {
         'validated_skills':      validated_skills,
@@ -196,7 +203,7 @@ def _calc_formatting_score(parsed_resume: Dict, text: str) -> float:
     ] if has_it)
     score += _tier_score(filled, [(4,5.0),(3,4.0),(2,3.0),(1,2.0)])
 
-    return min(20.0, max(0.0, score))
+    return min(SCORE_WEIGHTS['formatting'], max(0.0, score))
 
 #02 keyword score
 def _calc_keywords_score(
@@ -218,7 +225,7 @@ def _calc_keywords_score(
     elif len(resume_keywords) >= 10:
         score += 3.0
 
-    return min(25.0, max(0.0, score))
+    return min(SCORE_WEIGHTS['keywords'], max(0.0, score))
 
 #3. CONTENT QUALITY SCORE
 def _calc_content_score(
@@ -244,11 +251,11 @@ def _calc_content_score(
     grammar_penalty = grammar_results.get('penalty_applied', 0.0)
     score += max(0.0, 10.0 - grammar_penalty / 2.0)
 
-    return min(25.0, max(0.0, score))
+    return min(SCORE_WEIGHTS['content'], max(0.0, score))
 
 #4. SKILL VALIDATION SCORE
 def _calc_skill_validation_score(validation_results: Dict) -> float:
-    return min(15.0, max(0.0, validation_results.get('validation_score', 0.0)))
+    return min(SCORE_WEIGHTS['skill_validation'], max(0.0, validation_results.get('validation_score', 0.0)))
 
 #5. ATS COMPATIBILITY SCORE
 def _calc_ats_compatibility_score(
@@ -286,7 +293,7 @@ def _calc_ats_compatibility_score(
     if exp_entries and skills_count > 5:
         score += 1.0
 
-    return min(15.0, max(0.0, score))
+    return min(SCORE_WEIGHTS['ats_compatibility'], max(0.0, score))
 
 #Score aggregation and final interpretation
 def calculate_overall_score(
@@ -301,83 +308,88 @@ def calculate_overall_score(
     jd_keywords: Optional[List[str]] = None,
     experience_months: int = 0,
 ) -> Dict:
+    """Combine the five component scores into one score out of 100.
 
-    formatting_score        = _calc_formatting_score(parsed_resume, text)
-    keywords_score          = _calc_keywords_score(keywords, skills, jd_keywords)
-    content_score           = _calc_content_score(text, action_verbs, grammar_results)
-    skill_validation_score  = _calc_skill_validation_score(skill_validation_results)
-    ats_compatibility_score = _calc_ats_compatibility_score(text, location_results, parsed_resume)
+    Each component is already scored on its own weighted scale (see
+    SCORE_WEIGHTS), and those scales sum to 100 — so the total is simply their
+    sum. That is the whole model: the breakdown a user sees adds up to the
+    number they were given.
 
-    COMPONENT_MAX = {
-        'formatting': 20.0, 'keywords': 25.0, 'content': 25.0,
-        'skill_validation': 15.0, 'ats_compatibility': 15.0,
+    Small adjustments are then applied for things that span components. They
+    are returned alongside the score so the UI can show why it moved, rather
+    than leaving an unexplained gap between the breakdown and the total.
+    """
+    component_scores = {
+        'formatting': _calc_formatting_score(parsed_resume, text),
+        'keywords': _calc_keywords_score(keywords, skills, jd_keywords),
+        'content': _calc_content_score(text, action_verbs, grammar_results),
+        'skill_validation': _calc_skill_validation_score(skill_validation_results),
+        'ats_compatibility': _calc_ats_compatibility_score(
+            text, location_results, parsed_resume
+        ),
     }
 
-    formatting_pct        = (formatting_score        / COMPONENT_MAX['formatting'])        * 100.0
-    keywords_pct          = (keywords_score          / COMPONENT_MAX['keywords'])          * 100.0
-    content_pct           = (content_score           / COMPONENT_MAX['content'])           * 100.0
-    skill_validation_pct  = (skill_validation_score  / COMPONENT_MAX['skill_validation'])  * 100.0
-    ats_compatibility_pct = (ats_compatibility_score / COMPONENT_MAX['ats_compatibility']) * 100.0
+    base_score = sum(component_scores.values())
 
-    skills_keywords_pct = (keywords_pct * 0.6) + (skill_validation_pct * 0.4)
-
-    base_score = (
-        skills_keywords_pct   * 0.40 +
-        content_pct           * 0.30 +
-        formatting_pct        * 0.15 +
-        ats_compatibility_pct * 0.15
-    )
-
-    penalties = {}
-    bonuses   = {}
-    score     = base_score
-
-    if grammar_results.get('penalty_applied', 0.0) > 0:
-        penalties['grammar'] = grammar_results['penalty_applied']
-
-    if location_results.get('penalty_applied', 0.0) > 0:
-        penalties['location_privacy'] = location_results['penalty_applied']
+    # ---- Adjustments -----------------------------------------------------
+    # Each entry is (label, points, reason). Positive points are bonuses.
+    # Grammar and location penalties are deliberately absent: they are already
+    # subtracted inside the content and ats_compatibility components, and
+    # counting them again here would penalise the same fault twice.
+    adjustments: List[Dict] = []
 
     validation_pct = skill_validation_results.get('validation_percentage', 0.0)
     if validation_pct >= 0.9:
-        bonuses['excellent_skill_validation'] = 2.0
-        score += 2.0
+        adjustments.append({
+            'label': 'Nearly every skill is evidenced',
+            'points': BONUS_SKILL_VALIDATION_EXCELLENT,
+            'reason': f'{validation_pct * 100:.0f}% of your skills appear in a project or role.',
+        })
     elif validation_pct >= 0.8:
-        bonuses['good_skill_validation'] = 1.0
-        score += 1.0
+        adjustments.append({
+            'label': 'Most skills are evidenced',
+            'points': BONUS_SKILL_VALIDATION_GOOD,
+            'reason': f'{validation_pct * 100:.0f}% of your skills appear in a project or role.',
+        })
 
     if grammar_results.get('total_errors', 0) == 0:
-        bonuses['perfect_grammar'] = 1.0
-        score += 1.0
+        adjustments.append({
+            'label': 'Clean writing',
+            'points': BONUS_CLEAN_WRITING,
+            'reason': 'No spelling or phrasing problems were found.',
+        })
 
-    if jd_keywords and len(jd_keywords) > 0:
+    if jd_keywords:
         all_resume_terms = list(set((keywords or []) + (skills or [])))
-        fuzzy_result     = fuzzy_match_keywords(all_resume_terms, jd_keywords, threshold=80)
-        missing_pct      = len(fuzzy_result['missing']) / len(jd_keywords)
+        fuzzy_result = fuzzy_match_keywords(all_resume_terms, jd_keywords, threshold=80)
+        missing_pct = len(fuzzy_result['missing']) / len(jd_keywords)
 
-        if missing_pct > 0.7:
-            penalties['missing_jd_keywords'] = 15.0
-            score -= 15.0
-        elif missing_pct > 0.5:
-            penalties['missing_jd_keywords'] = 10.0
-            score -= 10.0
-        elif missing_pct > 0.3:
-            penalties['missing_jd_keywords'] = 5.0
-            score -= 5.0
+        for threshold, penalty in JD_MISSING_PENALTIES:
+            if missing_pct > threshold:
+                adjustments.append({
+                    'label': 'Missing job description keywords',
+                    'points': -penalty,
+                    'reason': (
+                        f'{missing_pct * 100:.0f}% of the terms in the posting '
+                        'are absent from your resume.'
+                    ),
+                })
+                break
 
-    overall_score = min(100.0, max(0.0, score))
-    interpretation = _generate_score_interpretation(overall_score)
+    total = base_score + sum(item['points'] for item in adjustments)
+    overall_score = min(100.0, max(0.0, total))
 
     return {
-        'overall_score':           round(overall_score, 1),
-        'formatting_score':        round(formatting_score, 1),
-        'keywords_score':          round(keywords_score, 1),
-        'content_score':           round(content_score, 1),
-        'skill_validation_score':  round(skill_validation_score, 1),
-        'ats_compatibility_score': round(ats_compatibility_score, 1),
-        'overall_interpretation':  interpretation,
-        'penalties':               penalties,
-        'bonuses':                 bonuses,}
+        'overall_score': round(overall_score, 1),
+        'base_score': round(base_score, 1),
+        'formatting_score': round(component_scores['formatting'], 1),
+        'keywords_score': round(component_scores['keywords'], 1),
+        'content_score': round(component_scores['content'], 1),
+        'skill_validation_score': round(component_scores['skill_validation'], 1),
+        'ats_compatibility_score': round(component_scores['ats_compatibility'], 1),
+        'overall_interpretation': _generate_score_interpretation(overall_score),
+        'adjustments': adjustments,
+    }
 
 
 #Interpretation of overall score

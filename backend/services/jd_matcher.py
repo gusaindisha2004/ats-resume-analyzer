@@ -8,6 +8,7 @@ import numpy as np
 import spacy
 from sentence_transformers import SentenceTransformer
 
+from backend.core.config import JD_KEYWORD_WEIGHT, JD_SEMANTIC_WEIGHT
 from backend.utils.matching import fuzzy_match_keywords, normalize_skill
 from rapidfuzz import fuzz
 
@@ -85,7 +86,10 @@ def calculate_match_percentage(
         return 0.0
     matched = identify_matched_keywords(resume_keywords, jd_keywords)
     keyword_overlap = len(matched) / len(jd_keywords)
-    match_pct = (keyword_overlap * 0.6 + semantic_similarity * 0.4) * 100
+    match_pct = (
+        keyword_overlap * JD_KEYWORD_WEIGHT
+        + semantic_similarity * JD_SEMANTIC_WEIGHT
+    ) * 100
     return float(np.clip(match_pct, 0.0, 100.0))
 
 

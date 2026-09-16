@@ -156,6 +156,9 @@ export function AnalysisResults({ analysis }: { analysis: AnalysisResponse }) {
         <ScoreBreakdown
           scores={analysis.component_scores}
           max={analysis.component_max}
+          baseScore={analysis.base_score}
+          adjustments={analysis.adjustments}
+          total={analysis.ats_score}
         />
         <Strengths items={analysis.strengths} />
       </div>

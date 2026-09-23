@@ -181,6 +181,18 @@ its accessible name, issue grouping and expansion, the writing-quality panel,
 upload validation through both the picker and drag-and-drop, and the normaliser
 that keeps an older stored analysis from blanking the page.
 
+## Deploying
+
+Frontend on Vercel, backend on Hugging Face Spaces — both free tiers, both
+behind a custom subdomain. Spaces is the deliberate choice for the backend:
+it needs ~1 GB of RAM for spaCy and the sentence-transformer, more than most
+free tiers allow, and Spaces gives 16 GB on free CPU.
+
+See [`deploy/DEPLOY.md`](deploy/DEPLOY.md) for the full walkthrough, including
+DNS records and the Supabase redirect configuration. The `Dockerfile` at the
+repository root builds the backend image and is built in CI, so a break shows
+up there rather than in a Spaces build log.
+
 ## Rate limits
 
 The analyze endpoint spends Groq tokens and several seconds of CPU, so it is

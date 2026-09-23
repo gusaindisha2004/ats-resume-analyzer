@@ -1,0 +1,24 @@
+# The image only needs backend/ — everything else is context bloat.
+web/
+reference/
+venv/
+.venv/
+node_modules/
+
+.git/
+.github/
+.claude/
+
+jupyter notebooks/
+scripts/
+**/__pycache__/
+**/*.pyc
+backend/logs/
+backend/tests/
+
+.env
+.env.*
+!.env.example
+
+*.md
+!README.md

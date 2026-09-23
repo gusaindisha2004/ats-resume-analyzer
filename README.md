@@ -94,6 +94,12 @@ plain extraction drops → Groq's `llama-3.3-70b-versatile` returns structured
 JSON → scoring, skill validation and JD matching run locally → the result is
 saved to Supabase and returned.
 
+The Groq model is set by `GROQ_MODEL` (default `openai/gpt-oss-120b`).
+Providers retire models without notice — `llama-3.3-70b-versatile`, the
+original choice, was withdrawn mid-development — so `check_setup.py` verifies
+the configured model is one your key can actually use, and a retirement
+surfaces as a readable error naming the variable to change.
+
 Models load once at startup into `app.state` rather than per request.
 
 ## Running it locally

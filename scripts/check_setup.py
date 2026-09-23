@@ -99,12 +99,31 @@ def main() -> int:
                 headers={'Authorization': f'Bearer {groq_key}'},
                 timeout=15,
             )
-            report(
+            key_ok = report(
                 response.status_code == 200,
                 'Groq key is accepted',
                 f'HTTP {response.status_code}',
                 fix='The key was rejected. Check for a typo or a revoked key.',
             )
+
+            # Providers retire models without notice; catching it here beats
+            # discovering it as a 404 mid-analysis.
+            if key_ok:
+                available = sorted(m['id'] for m in response.json().get('data', []))
+                model = env.get('GROQ_MODEL') or 'openai/gpt-oss-120b'
+                if model in available:
+                    report(True, f"Model '{model}' is available")
+                else:
+                    chat_models = [
+                        m for m in available
+                        if not any(x in m for x in ('whisper', 'guard', 'orpheus', 'tts'))
+                    ]
+                    report(
+                        False,
+                        f"Model '{model}' is available",
+                        'Your key can use: ' + ', '.join(chat_models[:6]),
+                        fix='Set GROQ_MODEL in .env to one of the models listed above.',
+                    )
         except Exception as exc:
             report(False, 'Groq reachable', str(exc)[:80], fix='Check your connection.')
 

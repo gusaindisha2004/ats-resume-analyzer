@@ -8,7 +8,15 @@ from groq import Groq
 logger=logging.getLogger('ats_resume_scorer')
 
 
-GROQ_MODEL='llama-3.3-70b-versatile'
+# Providers retire models on their own schedule — llama-3.3-70b-versatile was
+# withdrawn without notice and every analysis started failing with a 404. The
+# model is therefore configurable, and a retirement is reported as a readable
+# error naming the variable to change rather than a raw provider payload.
+GROQ_MODEL = os.getenv('GROQ_MODEL', 'openai/gpt-oss-120b')
+
+
+class ModelUnavailableError(RuntimeError):
+    """The configured Groq model no longer exists, or this key can't use it."""
 
 _client=None
 
@@ -75,17 +83,26 @@ Important instructions:
 Resume Text:
 {raw_text}"""
 
-def _call_groq(client:Groq, system_prompt:str, user_prompt:str)->str:
-
-    response=client.chat.completions.create(
-        model=GROQ_MODEL, 
-        messages=[
-            {'role': 'system', 'content': system_prompt},
-            {'role': 'user', 'content': user_prompt}
-        ],
-        temperature=0.0,
-        max_tokens=4096
-    )
+def _call_groq(client: Groq, system_prompt: str, user_prompt: str) -> str:
+    try:
+        response = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': user_prompt},
+            ],
+            temperature=0.0,
+            max_tokens=4096,
+        )
+    except Exception as exc:
+        message = str(exc)
+        if 'model_not_found' in message or 'does not exist' in message:
+            raise ModelUnavailableError(
+                f"The Groq model '{GROQ_MODEL}' is unavailable — providers retire "
+                'models periodically. Set GROQ_MODEL in .env to one your key can '
+                'use; run scripts/check_setup.py to see the current list.'
+            ) from exc
+        raise
 
     return response.choices[0].message.content.strip()
 

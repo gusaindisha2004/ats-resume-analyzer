@@ -1,4 +1,5 @@
-from typing import Dict, List
+import re
+from typing import Dict, Iterable, List
 
 from rapidfuzz import fuzz
 
@@ -29,6 +30,95 @@ SKILL_ALIASES: Dict[str, str] = {
     'pyspark':       'spark',
     'huggingface':   'hugging face',
 }
+
+
+# ── Keyword hygiene ─────────────────────────────────────────────────────────
+# An LLM asked for "keywords" will sometimes return requirement sentences:
+#
+#   "Bachelor's degree in Statistics, Mathematics, Machine Learning, ..."
+#   "1-3 years experience with insurance claims and EHR databases (e.g., IQVIA)"
+#
+# Those can never fuzzy-match a resume term, so every one inflates the missing
+# count — which drives the score penalty. Left unfiltered they make a resume
+# look like it matches almost nothing.
+#
+# spaCy noun chunks have the mirror problem: "a growth mindset", "a series",
+# "a related field" are grammatical noun phrases but useless as skills.
+
+_MAX_KEYWORD_WORDS = 4
+_MAX_KEYWORD_CHARS = 40
+
+# Sentence punctuation, list separators and prose markers. A keyword has none.
+_PROSE_MARKERS = re.compile(r'[(),;:]|e\.g\.|i\.e\.|etc', re.IGNORECASE)
+
+# Leading words that make a noun phrase rather than a skill.
+_LEADING_NOISE = frozenset({
+    'a', 'an', 'the', 'this', 'that', 'these', 'those', 'any', 'all', 'some',
+    'your', 'our', 'their', 'its', 'his', 'her', 'my',
+    'other', 'related', 'various', 'several', 'such', 'each', 'every', 'both',
+})
+
+# Phrases that are requirements or boilerplate, not skills.
+_BOILERPLATE = frozenset({
+    'years', 'year', 'experience', 'degree', 'field', 'ability', 'knowledge',
+    'understanding', 'work', 'role', 'team', 'company', 'candidate',
+    'opportunity', 'applicants', 'employer', 'commitment', 'mindset',
+    'responsibilities', 'requirements', 'qualifications', 'plus', 'bonus',
+})
+
+
+def _strip_leading_noise(text: str) -> str:
+    """Drop leading articles and determiners: 'a growth mindset' -> 'growth mindset'."""
+    words = text.split()
+    while words and words[0].lower() in _LEADING_NOISE:
+        words.pop(0)
+    return ' '.join(words)
+
+
+def is_usable_keyword(text: str) -> bool:
+    """True when a string is specific enough to match a resume term against."""
+    if not text:
+        return False
+
+    cleaned = _strip_leading_noise(text.strip())
+    if not cleaned:
+        return False
+
+    # Must contain a letter — rejects "1-3", '("cv', bare punctuation.
+    if not any(ch.isalpha() for ch in cleaned):
+        return False
+
+    if len(cleaned) > _MAX_KEYWORD_CHARS:
+        return False
+
+    words = cleaned.split()
+    if not (1 <= len(words) <= _MAX_KEYWORD_WORDS):
+        return False
+
+    # Prose punctuation means this is a sentence fragment, not a term.
+    if _PROSE_MARKERS.search(cleaned):
+        return False
+
+    # Every word being boilerplate ("years experience") carries no signal.
+    if all(w.lower().strip('.,') in _BOILERPLATE for w in words):
+        return False
+
+    return True
+
+
+def clean_keywords(items: Iterable[str]) -> List[str]:
+    """Filter and tidy a keyword list, preserving order and dropping duplicates."""
+    seen: Dict[str, str] = {}
+    for raw in items:
+        if not isinstance(raw, str):
+            continue
+        if not is_usable_keyword(raw):
+            continue
+        cleaned = _strip_leading_noise(raw.strip())
+        key = cleaned.lower()
+        if key not in seen:
+            seen[key] = cleaned
+    return list(seen.values())
 
 
 def normalize_skill(skill: str) -> str:

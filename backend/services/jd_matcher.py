@@ -9,7 +9,7 @@ import spacy
 from sentence_transformers import SentenceTransformer
 
 from backend.core.config import JD_KEYWORD_WEIGHT, JD_SEMANTIC_WEIGHT
-from backend.utils.matching import fuzzy_match_keywords, normalize_skill
+from backend.utils.matching import clean_keywords, fuzzy_match_keywords, normalize_skill
 from rapidfuzz import fuzz
 
 
@@ -40,33 +40,24 @@ def identify_missing_keywords(
     return result['missing'][:top_n]
 
 
-def analyze_skills_gap(
-    resume_skills: List[str], jd_text: str, nlp: spacy.Language
-) -> List[str]:
-    doc       = nlp(jd_text[:5000])
-    jd_skills = set()
+def analyze_skills_gap(resume_skills: List[str], jd_skills: List[str]) -> List[str]:
+    """Skills the posting asks for that the resume doesn't have.
 
-    for ent in doc.ents:
-        if ent.label_ in ['PRODUCT', 'ORG', 'LANGUAGE']:
-            jd_skills.add(ent.text.lower())
-
-    for chunk in doc.noun_chunks:
-        ct = chunk.text.lower().strip()
-        if 1 <= len(ct.split()) <= 4:
-            jd_skills.add(ct)
-
-    # Normalize resume skills for comparison
+    Sourced from the skills the LLM extracted from the posting, not from spaCy
+    noun chunks over the raw text. Noun chunks are grammatical phrases, not
+    skills — mining them produced "a growth mindset", "a related field",
+    "an equal opportunity employer" and, memorably, '("cv'. The structured
+    extraction is already the clean version of this.
+    """
     resume_normalized = {normalize_skill(s) for s in resume_skills}
 
     gap = []
-    for jd_skill in jd_skills:
+    for jd_skill in clean_keywords(jd_skills):
         jd_norm = normalize_skill(jd_skill)
 
-        # Check canonical match first
         if jd_norm in resume_normalized:
             continue
 
-        # Then try fuzzy match against all resume skills
         best_score = max(
             (fuzz.token_sort_ratio(jd_norm, rs) for rs in resume_normalized),
             default=0,
@@ -99,13 +90,14 @@ def compare_resume_with_jd(
     resume_skills: List[str],
     jd_text: str,
     jd_keywords: List[str],
+    jd_skills: List[str],
     embedder: SentenceTransformer,
-    nlp: spacy.Language,
+    nlp: spacy.Language = None,
 ) -> Dict:
     semantic_similarity = calculate_semantic_similarity(resume_text, jd_text, embedder)
     matched_keywords    = identify_matched_keywords(resume_keywords, jd_keywords)
     missing_keywords    = identify_missing_keywords(resume_keywords, jd_keywords)
-    skills_gap          = analyze_skills_gap(resume_skills, jd_text, nlp)
+    skills_gap          = analyze_skills_gap(resume_skills, jd_skills)
     match_percentage    = calculate_match_percentage(
         resume_keywords, jd_keywords, semantic_similarity
     )

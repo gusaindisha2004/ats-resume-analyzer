@@ -48,18 +48,25 @@ def analyze_full_resume(
     jd_comparison_result = None
     jd_keywords = None
     if job_description and job_description.strip():
+        from backend.utils.matching import clean_keywords
+
         parsed_jd = parse_job_description(job_description.strip())
-        jd_keywords = list(set(
-            parsed_jd.get('keywords', []) +
-            parsed_jd.get('required_skills', []) +
-            parsed_jd.get('preferred_skills', [])
-        ))
+        jd_skills = parsed_jd.get('required_skills', []) + parsed_jd.get('preferred_skills', [])
+
+        # The model returns requirement sentences among the keywords — e.g.
+        # "Bachelor's degree in Statistics, Mathematics, ... or related field".
+        # Those can never match a resume term, so every one inflates the
+        # missing count and drives the score penalty. Filter before matching.
+        jd_keywords = clean_keywords(
+            parsed_jd.get('keywords', []) + jd_skills
+        )
         jd_comparison_result = compare_resume_with_jd(
             resume_text=resume_text,
             resume_keywords=keywords,
             resume_skills=skills,
             jd_text=job_description.strip(),
             jd_keywords=jd_keywords,
+            jd_skills=jd_skills,
             embedder=embedder,
             nlp=nlp,
         )

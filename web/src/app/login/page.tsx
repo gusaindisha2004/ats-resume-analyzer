@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, TriangleAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { fetchEnabledProviders } from "@/lib/auth-providers";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,19 @@ function LoginForm() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Null until we know; the button stays hidden in the meantime rather than
+  // flashing in and out.
+  const [googleEnabled, setGoogleEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetchEnabledProviders().then((providers) => {
+      if (active) setGoogleEnabled(providers.has("google"));
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -178,15 +192,19 @@ function LoginForm() {
             </Button>
           </form>
 
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="h-px flex-1 bg-border" />
-            or
-            <span className="h-px flex-1 bg-border" />
-          </div>
+          {googleEnabled && (
+            <>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />
+                or
+                <span className="h-px flex-1 bg-border" />
+              </div>
 
-          <Button variant="outline" className="w-full" onClick={handleGoogle}>
-            Continue with Google
-          </Button>
+              <Button variant="outline" className="w-full" onClick={handleGoogle}>
+                Continue with Google
+              </Button>
+            </>
+          )}
         </CardBody>
       </Card>
     </div>

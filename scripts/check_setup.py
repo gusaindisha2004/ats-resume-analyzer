@@ -112,7 +112,6 @@ def main() -> int:
     print('\nSupabase (auth + saved history)')
     url = env.get('SUPABASE_URL', '')
     service_key = env.get('SUPABASE_KEY', '')
-    anon_backend = env.get('SUPABASE_ANON_KEY', '')
     url_front = env.get('NEXT_PUBLIC_SUPABASE_URL', '')
     anon_front = env.get('NEXT_PUBLIC_SUPABASE_ANON_KEY', '')
 
@@ -121,12 +120,8 @@ def main() -> int:
         fix='Dashboard -> Project Settings -> API -> Project URL',
     )
     have_service = report(
-        is_set(service_key), 'SUPABASE_KEY (service_role) is set (.env)',
-        fix='Dashboard -> Project Settings -> API -> service_role secret',
-    )
-    report(
-        is_set(anon_backend), 'SUPABASE_ANON_KEY is set (.env)',
-        fix='Dashboard -> Project Settings -> API -> anon public',
+        is_set(service_key), 'SUPABASE_KEY (secret) is set (.env)',
+        fix='Dashboard -> Project Settings -> API -> Secret keys -> New secret key',
     )
     report(
         is_set(url_front), 'NEXT_PUBLIC_SUPABASE_URL is set (web/.env.local)',
@@ -134,7 +129,7 @@ def main() -> int:
     )
     report(
         is_set(anon_front), 'NEXT_PUBLIC_SUPABASE_ANON_KEY is set (web/.env.local)',
-        fix='Same anon public key',
+        fix='Dashboard -> Project Settings -> API -> Publishable key',
     )
 
     if is_set(url) and is_set(url_front):

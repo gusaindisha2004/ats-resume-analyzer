@@ -96,8 +96,9 @@ JD_MISSING_PENALTIES = (
 )
 
 SUPABASE_URL       = os.getenv('SUPABASE_URL', '')
-SUPABASE_KEY       = os.getenv('SUPABASE_KEY', '')          # service_role — DB writes (bypasses RLS)
-SUPABASE_ANON_KEY  = os.getenv('SUPABASE_ANON_KEY', '')     # public anon — frontend auth calls
+# Secret / service_role key. Bypasses row-level security, so it is server-side
+# only and ownership is enforced by this code's own user_id filters.
+SUPABASE_KEY       = os.getenv('SUPABASE_KEY', '')
 SUPABASE_JWT_SECRET= os.getenv('SUPABASE_JWT_SECRET', '')   # used by backend to verify access tokens
 GROQ_API_KEY       = os.getenv('GROQ_API_KEY', '')
 

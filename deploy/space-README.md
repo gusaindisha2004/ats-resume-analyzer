@@ -10,7 +10,7 @@ pinned: false
 
 # ATS Resume Analyzer — API
 
-FastAPI backend for the [ATS Resume Analyzer](https://github.com/OWNER/REPO).
+FastAPI backend for the [ATS Resume Analyzer](https://github.com/gusaindisha2004/ats-resume-analyzer).
 Parses a resume, scores it against five weighted components, validates claimed
 skills against project evidence, and compares it to a job description.
 

@@ -229,3 +229,52 @@ class TestDegradedInput:
     def test_skill_validation_is_zeroed_not_absent(self, empty_result):
         assert empty_result['skill_validation']['total'] == 0
         assert empty_result['skill_validation']['validation_pct'] == 0.0
+
+
+class TestStrengthsConsistency:
+    """A report must not praise and penalise the same thing.
+
+    A real run listed "Strong skill set — 41 skills detected" under What's
+    working while flagging "Most Skills Lack Supporting Evidence" for 29 of
+    those same 41. The skills list can't be both an asset and a liability.
+    """
+
+    def _strengths(self, skills, validated_count):
+        from backend.services.resume_analyzer import _generate_strengths
+
+        total = len(skills)
+        validation = {
+            'validated_skills': [{'skill': s} for s in skills[:validated_count]],
+            'unvalidated_skills': skills[validated_count:],
+            'validation_percentage': validated_count / total if total else 0.0,
+        }
+        return _generate_strengths(
+            parsed_resume={'skills': skills, 'experience': [], 'education': [],
+                           'projects': [], 'professional_summary': ''},
+            skills=skills,
+            projects=[],
+            action_verbs=[],
+            skill_validation=validation,
+            scores={},
+        )
+
+    def test_a_long_unbacked_skills_list_is_not_called_a_strength(self):
+        skills = [f'Skill{i}' for i in range(41)]
+        strengths = ' '.join(self._strengths(skills, validated_count=12))
+        assert 'Strong skill set' not in strengths
+
+    def test_a_long_well_evidenced_list_is_still_a_strength(self):
+        skills = [f'Skill{i}' for i in range(12)]
+        strengths = ' '.join(self._strengths(skills, validated_count=10))
+        assert 'Strong skill set' in strengths
+
+    def test_the_strength_states_the_evidenced_share(self):
+        """Naming the proportion stops the count being read as the whole story."""
+        skills = [f'Skill{i}' for i in range(10)]
+        strengths = ' '.join(self._strengths(skills, validated_count=8))
+        assert '80% backed by evidence' in strengths
+
+    def test_backed_skills_are_still_credited_when_the_share_is_low(self):
+        skills = [f'Skill{i}' for i in range(41)]
+        strengths = ' '.join(self._strengths(skills, validated_count=12))
+        assert '12 skills are backed' in strengths

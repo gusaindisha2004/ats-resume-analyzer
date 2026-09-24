@@ -143,3 +143,53 @@ class TestScoreImpact:
         result = fuzzy_match_keywords(resume, clean_keywords(raw_jd))
 
         assert set(result['matched']) == {'Python', 'SQL', 'Power BI'}
+
+
+class TestCompanyNames:
+    """The hiring company's own name is not a skill.
+
+    A real posting put "ClearView Healthcare Partners" among the keywords. No
+    resume can match an employer's name, so it only inflates the missing count.
+    """
+
+    @pytest.mark.parametrize(
+        'name',
+        [
+            'ClearView Healthcare Partners',
+            'Acme Corp',
+            'Globex Inc',
+            'Initech LLC',
+            'Northwind Holdings',
+            'Vertex Ventures',
+            'Smith Associates',
+            'Contoso Limited',
+        ],
+    )
+    def test_company_names_are_rejected(self, name):
+        assert not is_usable_keyword(name)
+
+    @pytest.mark.parametrize(
+        'skill',
+        [
+            'Power BI',
+            'Adobe Creative Suite',
+            'Google Cloud',
+            'Microsoft Excel',
+            'Amazon Web Services',
+            'Tableau',
+            'SAS',
+        ],
+    )
+    def test_product_names_are_not_mistaken_for_companies(self, skill):
+        """Only unambiguous corporate suffixes are filtered, so vendor-branded
+        products survive. Catching 'Solutions' or 'Technologies' would cost
+        these."""
+        assert is_usable_keyword(skill)
+
+    def test_a_bare_suffix_word_is_still_usable(self):
+        # "partners" alone isn't a company name; the rule needs 2+ words.
+        assert is_usable_keyword('partners')
+
+    def test_company_names_are_dropped_from_a_mixed_list(self):
+        result = clean_keywords(['ClearView Healthcare Partners', 'Python', 'SQL'])
+        assert result == ['Python', 'SQL']

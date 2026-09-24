@@ -6,6 +6,10 @@ from backend.services.jd_matcher import compare_resume_with_jd
 from backend.services.feedback_engine import analyze_issues, generate_issues_summary
 from backend.services.ats_scorer import calculate_overall_score, validate_skills_with_projects
 
+# Below this share of skills evidenced, a long skills list is a liability
+# rather than an asset, so it isn't listed as a strength.
+MIN_VALIDATION_FOR_SKILL_PRAISE = 0.5
+
 
 def analyze_full_resume(
     resume_text: str,
@@ -173,12 +177,24 @@ def _generate_strengths(
     if (parsed_resume.get('professional_summary') or '').strip():
         strengths.append("Professional Summary provides a quick overview")
 
-    if len(skills) >= 8:
-        strengths.append(f"Strong skill set — {len(skills)} skills detected")
+    # A long skills list is only a strength if the skills are actually
+    # evidenced. Praising the raw count while the report simultaneously flags
+    # "Most Skills Lack Supporting Evidence" told the user two opposite things
+    # about the same list.
+    validated = skill_validation.get('validated_skills', [])
+    validation_pct = skill_validation.get('validation_percentage', 0.0)
+
+    if len(skills) >= 8 and validation_pct >= MIN_VALIDATION_FOR_SKILL_PRAISE:
+        strengths.append(
+            f"Strong skill set — {len(skills)} skills, "
+            f"{validation_pct * 100:.0f}% backed by evidence"
+        )
+
     if len(action_verbs) >= 5:
         strengths.append(f"Uses {len(action_verbs)} strong action verbs in bullet points")
 
-    validated = skill_validation.get('validated_skills', [])
+    # Reporting how many are backed stays useful even when the proportion is
+    # low — it credits the evidenced ones without endorsing the list's length.
     if len(validated) >= 3:
         strengths.append(f"{len(validated)} skills are backed by project/experience evidence")
 

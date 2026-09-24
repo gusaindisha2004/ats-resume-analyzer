@@ -67,6 +67,30 @@ _BOILERPLATE = frozenset({
 })
 
 
+# The hiring company's own name turns up among extracted keywords — a real
+# posting yielded "ClearView Healthcare Partners". No resume can match the
+# employer's name, so it is another unmatchable term inflating the missing
+# count.
+#
+# Only unambiguous corporate suffixes are listed. Words like "Solutions",
+# "Technologies" and "Group" appear in genuine product names, and excluding
+# them would cost real matches — the same precision trade made in the spelling
+# filter, resolved the same way: catch less, but never catch a real skill.
+_COMPANY_SUFFIXES = frozenset({
+    'inc', 'inc.', 'llc', 'llc.', 'ltd', 'ltd.', 'limited', 'plc', 'llp',
+    'corp', 'corp.', 'corporation', 'incorporated', 'gmbh', 'ag', 'sa', 'bv',
+    'partners', 'holdings', 'ventures', 'associates',
+})
+
+
+def _looks_like_a_company(text: str) -> bool:
+    """True for multi-word names ending in a corporate suffix."""
+    words = text.split()
+    if len(words) < 2:
+        return False
+    return words[-1].lower().strip('.,') in _COMPANY_SUFFIXES
+
+
 def _strip_leading_noise(text: str) -> str:
     """Drop leading articles and determiners: 'a growth mindset' -> 'growth mindset'."""
     words = text.split()
@@ -101,6 +125,10 @@ def is_usable_keyword(text: str) -> bool:
 
     # Every word being boilerplate ("years experience") carries no signal.
     if all(w.lower().strip('.,') in _BOILERPLATE for w in words):
+        return False
+
+    # The employer's own name is not a skill the candidate can hold.
+    if _looks_like_a_company(cleaned):
         return False
 
     return True

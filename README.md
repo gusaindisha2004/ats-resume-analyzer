@@ -8,6 +8,8 @@ actually demonstrated anywhere in your projects or experience.
 
 **Next.js 16 · React 19 · TypeScript · FastAPI · spaCy · Sentence Transformers · Groq · Supabase**
 
+![The results page: score gauge, component breakdown that reconciles to the total, job-description match, flagged issues, skill validation and writing quality](docs/screenshots/results.png)
+
 ---
 
 ## The problem
@@ -38,6 +40,8 @@ every deduction explained — plus the specific edits that would move it.
   filtered hard so technology names and British spellings aren't flagged.
 - **Exports a PDF report** and keeps a history, so you can confirm a rewrite
   actually moved the number.
+
+![Landing page](docs/screenshots/landing.png)
 
 ---
 

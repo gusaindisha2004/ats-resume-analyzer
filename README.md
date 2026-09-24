@@ -136,8 +136,15 @@ Two signals, deliberately combined:
   words.
 
 The output separates **matched keywords**, **missing keywords** (shown in the
-posting's own wording, so you know what to add), and a **skills gap** derived
-from spaCy noun-chunk and entity extraction over the posting.
+posting's own wording, so you know what to add), and a **skills gap** taken
+from the required and preferred skills the LLM extracted from the posting.
+
+Both lists are filtered first. Asked for keywords, a model will return
+requirement sentences — *"Bachelor's degree in Statistics, Mathematics, ... or
+related field"* — and the hiring company's own name. Neither can ever match a
+resume term, so each one inflates the missing count and pushes the score
+penalty up. A real posting was showing 92% of its terms as missing largely for
+this reason.
 
 ### Resume quality checks
 
@@ -190,7 +197,7 @@ installed in the Docker image, so this works in deployment.
 │   ├── models/             Pydantic schemas — the API contract
 │   ├── database/           Supabase REST persistence
 │   ├── templates/          Jinja2 report templates
-│   └── tests/              200 tests
+│   └── tests/              252 tests
 ├── web/                    Next.js frontend
 │   └── src/
 │       ├── app/            Routes: landing, analyze, history, login, auth callback
@@ -317,20 +324,21 @@ counters across replicas.
 ## Testing
 
 ```bash
-pytest backend/tests -q          # 200 tests
+pytest backend/tests -q          # 252 tests
 npm test --prefix web            # 57 tests
 ```
 
 Both run on every push via [GitHub Actions](.github/workflows/ci.yml), along
 with typecheck, lint, a production build, and a Docker image build.
 
-**Backend (200)** — the HTTP layer via `TestClient` (auth including expiry and
+**Backend (252)** — the HTTP layer via `TestClient` (auth including expiry and
 misconfiguration, upload validation, status codes); file validation by
 signature, including a renamed executable and a non-Word ZIP that must both be
 rejected; every scoring component and its bounds; that the breakdown reconciles
 and no penalty is counted twice; skill validation; location detection; writing
 checks, most of which assert what must *not* be flagged; LLM response handling
-(malformed JSON, markdown fences, retries, type coercion); rate limiting; and a
+(malformed JSON, markdown fences, retries, type coercion); rate limiting;
+keyword hygiene, built from strings a real analysis actually produced; and a
 full pipeline run against the real spaCy and sentence-transformer models with
 only the Groq call mocked.
 

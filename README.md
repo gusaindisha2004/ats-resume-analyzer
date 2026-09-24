@@ -8,8 +8,6 @@ actually demonstrated anywhere in your projects or experience.
 
 **Next.js 16 · React 19 · TypeScript · FastAPI · spaCy · Sentence Transformers · Groq · Supabase**
 
-![The results page: score gauge, component breakdown that reconciles to the total, job-description match, flagged issues, skill validation and writing quality](docs/screenshots/results.png)
-
 ---
 
 ## The problem
@@ -41,7 +39,7 @@ every deduction explained — plus the specific edits that would move it.
 - **Exports a PDF report** and keeps a history, so you can confirm a rewrite
   actually moved the number.
 
-![Landing page](docs/screenshots/landing.png)
+<img src="docs/screenshots/score-summary.png" alt="Score of 71 with skills found, experience, issues found and job-description match" width="820">
 
 ---
 
@@ -107,6 +105,8 @@ Grammar and location penalties are deliberately *not* in that list — they're
 already subtracted inside the content and ATS-compatibility components, and
 applying them again would punish one fault twice.
 
+<img src="docs/screenshots/score-breakdown.png" alt="Score breakdown: five components summing to 78.0, then +1.0 for clean writing and -8.0 for missing keywords, giving 71.0" width="440">
+
 All of it lives in one place, `SCORE_WEIGHTS` in
 [`backend/core/config.py`](backend/core/config.py), imported by the scorer and
 by the API schema. A test asserts the five still sum to 100.
@@ -128,6 +128,8 @@ The result separates skills backed by evidence — naming the project that
 demonstrates each — from skills with none. Listing Kubernetes once in a Skills
 section and never again is exactly what a recruiter probes in an interview.
 
+<img src="docs/screenshots/skill-validation.png" alt="Skill validation at 40 percent: Python and PostgreSQL backed by the Ledger Service project, while Kubernetes, Terraform and Kafka have no supporting evidence" width="820">
+
 ### Job description matching
 
 Two signals, deliberately combined:
@@ -142,6 +144,8 @@ Two signals, deliberately combined:
 The output separates **matched keywords**, **missing keywords** (shown in the
 posting's own wording, so you know what to add), and a **skills gap** taken
 from the required and preferred skills the LLM extracted from the posting.
+
+<img src="docs/screenshots/jd-match.png" alt="Job description match: 58 percent overall, 61 percent semantic similarity, with matched and missing keywords listed separately" width="820">
 
 Both lists are filtered first. Asked for keywords, a model will return
 requirement sentences — *"Bachelor's degree in Statistics, Mathematics, ... or
@@ -307,6 +311,13 @@ never prints a secret.
 4. Read the breakdown: where points came from, what to fix, which skills you
    can't back up, and what the posting wants that you're missing.
 5. Export a PDF, or revisit past analyses in History.
+
+<details>
+<summary>The full results page</summary>
+
+<img src="docs/screenshots/results.png" alt="Complete results page" width="820">
+
+</details>
 
 ## Rate limits
 

@@ -321,9 +321,11 @@ never prints a secret.
 ## Rate limits
 
 The analyze endpoint spends Groq tokens and several seconds of CPU, so it's
-limited per caller — by authenticated user where there is one, falling back to
+limited per caller — by the bearer token where there is one, falling back to
 client IP (honouring `X-Forwarded-For`, since behind a proxy every request
-otherwise shares one address).
+otherwise shares one address). The token is a per-session identifier, not a
+per-user one: Supabase rotates access tokens roughly hourly, and a fresh token
+starts a fresh count.
 
 | Endpoint | Default | Variable |
 | --- | --- | --- |

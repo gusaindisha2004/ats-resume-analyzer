@@ -177,7 +177,7 @@ Jinja2 templates rendered to PDF with WeasyPrint, covering the summary, skills,
 action items, and the JD comparison when one was supplied. WeasyPrint needs
 native libraries (GTK/Pango/cairo); when they're missing the API returns a
 **503 with installation instructions** rather than an opaque 500. They're
-installed in the Docker image, so this works in deployment.
+installed in the Docker image, so this works when the backend runs from it.
 
 ---
 
@@ -212,7 +212,6 @@ installed in the Docker image, so this works in deployment.
 │       ├── components/     Score gauge, breakdown, issue list, panels
 │       └── lib/            Typed API client, Supabase SSR clients, utilities
 ├── scripts/                Setup checker and database schema
-├── deploy/                 Deployment guide and Hugging Face Space config
 └── Dockerfile              Backend image (built in CI)
 ```
 
@@ -364,13 +363,10 @@ keeps an older stored analysis from blanking the page.
 
 ## Deploying
 
-Frontend on Vercel, backend on Hugging Face Spaces — both free tiers, both
-behind a custom subdomain. Spaces is the deliberate choice for the backend: it
-needs ~1 GB of RAM resident for spaCy and the sentence-transformer, more than
-most free tiers allow, and Spaces gives 16 GB on free CPU.
-
-See [`deploy/DEPLOY.md`](deploy/DEPLOY.md) for the walkthrough, DNS records and
-Supabase redirect configuration.
+Not yet deployed. The backend image builds in CI on every push, but hosting is
+still being chosen: the backend keeps ~1 GB of RAM resident for spaCy and the
+sentence-transformer, more than most free tiers allow, and Hugging Face Docker
+Spaces — the original plan — now require a paid plan.
 
 ## Limitations
 
